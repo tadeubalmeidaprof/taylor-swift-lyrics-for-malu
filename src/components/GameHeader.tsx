@@ -12,7 +12,7 @@ function formatTime(seconds: number) {
 }
 
 export function GameHeader({ found, total, remainingSeconds, progress }: GameHeaderProps) {
-  const urgent = remainingSeconds <= 120
+  const urgent = remainingSeconds <= 60
 
   return (
     <header className="game-header">
