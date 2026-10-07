@@ -19,7 +19,16 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
   const feedbackTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
-    if (!disabled) inputRef.current?.focus({ preventScroll: true })
+    if (disabled || !inputRef.current) return
+
+    const previousY = window.scrollY
+    inputRef.current.focus({ preventScroll: true })
+
+    window.requestAnimationFrame(() => {
+      if (Math.abs(window.scrollY - previousY) > 4) {
+        window.scrollTo({ top: previousY, behavior: 'auto' })
+      }
+    })
   }, [disabled])
 
   useEffect(() => {
@@ -55,7 +64,6 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
       versionRef.current += 1
       latestValueRef.current = ''
       setValue('')
-      inputRef.current?.focus({ preventScroll: true })
     }
   }
 
