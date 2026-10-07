@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: swifter-lyrics-for-malu
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_SUPABASE_URL
+        value: https://yvzzvmxrmitbrpcbcbim.supabase.co
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
