@@ -72,6 +72,8 @@ export default function App() {
             totalWords={session.totalWords}
             revealed={session.revealed}
             chorusRanges={session.chorusRanges}
+            foundPositions={session.foundPositions}
+            status={session.status}
           />
         </section>
       </div>
