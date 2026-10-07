@@ -19,8 +19,8 @@ export async function startRandomGame(clientId?: string) {
   return firstRow<StartGameResponse>(data as StartGameResponse[])
 }
 
-export async function submitGuess(sessionToken: string, guess: string) {
-  const { data, error } = await supabase.rpc('submit_guess', {
+export async function submitLiveGuess(sessionToken: string, guess: string) {
+  const { data, error } = await supabase.rpc('submit_live_guess', {
     p_session_token: sessionToken,
     p_guess: guess,
   })
