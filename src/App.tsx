@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { EndBar } from './components/EndBar'
 import { GameHeader } from './components/GameHeader'
+import { GiveUpDialog } from './components/GiveUpDialog'
 import { GuessInput } from './components/GuessInput'
 import { IntroScreen } from './components/IntroScreen'
 import { LyricsGrid } from './components/LyricsGrid'
-import { ResultScreen } from './components/ResultScreen'
 import { useGame } from './hooks/useGame'
 
 function setThemeColor(color: string) {
@@ -12,36 +13,32 @@ function setThemeColor(color: string) {
 }
 
 export default function App() {
+  const [showGiveUp, setShowGiveUp] = useState(false)
+
   const {
     session,
     loading,
-    message,
     startError,
     remainingSeconds,
     progress,
     start,
     guess,
+    giveUp,
   } = useGame()
 
   useEffect(() => {
-    setThemeColor(session ? '#ffffff' : '#0f0d16')
+    setThemeColor(session ? '#000000' : '#0f0d16')
   }, [session])
 
   if (!session) {
     return <IntroScreen onPlay={start} loading={loading} error={startError} />
   }
 
-  if (session.status !== 'active') {
-    return (
-      <ResultScreen
-        completed={session.status === 'completed'}
-        found={session.foundWords}
-        total={session.totalWords}
-        title={session.finalTitle}
-        album={session.finalAlbum}
-        onNext={start}
-      />
-    )
+  const active = session.status === 'active'
+
+  async function handleGiveUp() {
+    await giveUp()
+    setShowGiveUp(false)
   }
 
   return (
@@ -54,18 +51,20 @@ export default function App() {
           progress={progress}
         />
 
-        <GuessInput
-          disabled={loading || session.status !== 'active'}
-          message={message}
-          onGuess={guess}
-        />
-
-        {session.wrongGuesses.length > 0 && (
-          <div className="wrong-guesses" aria-label="Tentativas que não aparecem na música">
-            {session.wrongGuesses.slice(-6).map((word) => (
-              <span key={word}>{word}</span>
-            ))}
-          </div>
+        {active ? (
+          <GuessInput
+            disabled={loading}
+            onGuess={guess}
+            onGiveUp={() => setShowGiveUp(true)}
+          />
+        ) : (
+          <EndBar
+            status={session.status}
+            title={session.finalTitle}
+            album={session.finalAlbum}
+            onNext={start}
+            loading={loading}
+          />
         )}
 
         <section className="lyrics-panel">
@@ -76,6 +75,13 @@ export default function App() {
           />
         </section>
       </div>
+
+      <GiveUpDialog
+        open={showGiveUp}
+        loading={loading}
+        onCancel={() => setShowGiveUp(false)}
+        onConfirm={() => void handleGiveUp()}
+      />
     </main>
   )
 }
