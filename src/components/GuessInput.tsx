@@ -11,16 +11,17 @@ export function GuessInput({ disabled, message, onGuess }: GuessInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!disabled) inputRef.current?.focus()
+    if (!disabled) inputRef.current?.focus({ preventScroll: true })
   }, [disabled])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const guess = value.trim()
     if (!guess || disabled) return
+
     setValue('')
     await onGuess(guess)
-    inputRef.current?.focus()
+    inputRef.current?.focus({ preventScroll: true })
   }
 
   return (
@@ -32,6 +33,7 @@ export function GuessInput({ disabled, message, onGuess }: GuessInputProps) {
           onChange={(event) => setValue(event.target.value)}
           type="text"
           inputMode="text"
+          enterKeyHint="go"
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="none"
