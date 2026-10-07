@@ -283,6 +283,11 @@ export function useGame() {
     }
   }, [session, loading, refreshState, markActivity])
 
+  const goHome = useCallback(() => {
+    clearLocalSession()
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [clearLocalSession])
+
   const progress = useMemo(() => {
     if (!session?.totalWords) return 0
     return Math.round((session.foundWords / session.totalWords) * 100)
@@ -297,5 +302,6 @@ export function useGame() {
     start,
     guess,
     giveUp,
+    goHome,
   }
 }
