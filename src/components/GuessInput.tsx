@@ -17,6 +17,7 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
   const latestValueRef = useRef('')
   const versionRef = useRef(0)
   const feedbackTimerRef = useRef<number | null>(null)
+  const focusScrollRef = useRef(0)
 
   useEffect(() => {
     if (disabled || !inputRef.current) return
@@ -80,6 +81,24 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
     return () => window.clearTimeout(timer)
   }, [value, disabled])
 
+  function preserveScrollBeforeFocus() {
+    focusScrollRef.current = window.scrollY
+  }
+
+  function restoreScrollAfterFocus() {
+    const targetY = focusScrollRef.current
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: targetY, behavior: 'auto' })
+    })
+
+    window.setTimeout(() => {
+      if (document.activeElement === inputRef.current && Math.abs(window.scrollY - targetY) > 6) {
+        window.scrollTo({ top: targetY, behavior: 'auto' })
+      }
+    }, 220)
+  }
+
   function handleChange(nextValue: string) {
     versionRef.current += 1
     latestValueRef.current = nextValue
@@ -104,6 +123,9 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
             <input
               ref={inputRef}
               value={value}
+              onPointerDown={preserveScrollBeforeFocus}
+              onTouchStart={preserveScrollBeforeFocus}
+              onFocus={restoreScrollAfterFocus}
               onChange={(event) => handleChange(event.target.value)}
               type="text"
               inputMode="text"
