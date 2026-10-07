@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react'
+import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react'
 import type { GuessOutcome } from '../types/game'
 
 type GuessInputProps = {
@@ -9,6 +9,8 @@ type GuessInputProps = {
 
 const AUTO_CHECK_DELAY = 80
 const FEEDBACK_DURATION = 520
+const FOCUS_SCROLL_LOCK_MS = 850
+const FOCUS_RESTORE_STEPS = [0, 90, 180, 320, 520, 760]
 
 export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
   const [value, setValue] = useState('')
@@ -18,27 +20,110 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
   const versionRef = useRef(0)
   const feedbackTimerRef = useRef<number | null>(null)
   const focusScrollRef = useRef(0)
+  const focusLockUntilRef = useRef(0)
+  const focusRestoreTimersRef = useRef<number[]>([])
 
   useEffect(() => {
     if (disabled || !inputRef.current) return
 
-    const previousY = window.scrollY
-    inputRef.current.focus({ preventScroll: true })
-
-    window.requestAnimationFrame(() => {
-      if (Math.abs(window.scrollY - previousY) > 4) {
-        window.scrollTo({ top: previousY, behavior: 'auto' })
-      }
-    })
+    // No mobile, o foco automático pode fazer o Safari reposicionar a página
+    // ao abrir o teclado. Mantemos auto-focus apenas para mouse/trackpad.
+    if (window.matchMedia('(pointer: fine)').matches) {
+      inputRef.current.focus({ preventScroll: true })
+    }
   }, [disabled])
+
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+
+    const preserveScrollDuringKeyboardAnimation = () => {
+      if (
+        document.activeElement !== inputRef.current ||
+        performance.now() > focusLockUntilRef.current
+      ) {
+        return
+      }
+
+      window.requestAnimationFrame(() => {
+        window.scrollTo({
+          top: focusScrollRef.current,
+          behavior: 'auto',
+        })
+      })
+    }
+
+    viewport.addEventListener('resize', preserveScrollDuringKeyboardAnimation)
+    viewport.addEventListener('scroll', preserveScrollDuringKeyboardAnimation)
+
+    return () => {
+      viewport.removeEventListener('resize', preserveScrollDuringKeyboardAnimation)
+      viewport.removeEventListener('scroll', preserveScrollDuringKeyboardAnimation)
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
       if (feedbackTimerRef.current) {
         window.clearTimeout(feedbackTimerRef.current)
       }
+
+      for (const timer of focusRestoreTimersRef.current) {
+        window.clearTimeout(timer)
+      }
     }
   }, [])
+
+  function clearFocusRestoreTimers() {
+    for (const timer of focusRestoreTimersRef.current) {
+      window.clearTimeout(timer)
+    }
+
+    focusRestoreTimersRef.current = []
+  }
+
+  function restoreSavedScroll() {
+    if (
+      document.activeElement !== inputRef.current ||
+      performance.now() > focusLockUntilRef.current
+    ) {
+      return
+    }
+
+    window.scrollTo({
+      top: focusScrollRef.current,
+      behavior: 'auto',
+    })
+  }
+
+  function scheduleScrollRestoration() {
+    clearFocusRestoreTimers()
+
+    focusRestoreTimersRef.current = FOCUS_RESTORE_STEPS.map((delay) =>
+      window.setTimeout(() => {
+        restoreSavedScroll()
+      }, delay),
+    )
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLInputElement>) {
+    if (disabled || !inputRef.current) return
+    if (document.activeElement === inputRef.current) return
+
+    focusScrollRef.current = window.scrollY
+    focusLockUntilRef.current = performance.now() + FOCUS_SCROLL_LOCK_MS
+
+    // Foco síncrono dentro do gesto: abre o teclado no iOS sem deixar o
+    // Safari executar o scroll automático padrão do campo focado.
+    event.preventDefault()
+    inputRef.current.focus({ preventScroll: true })
+    scheduleScrollRestoration()
+  }
+
+  function handleBlur() {
+    focusLockUntilRef.current = 0
+    clearFocusRestoreTimers()
+  }
 
   function showFeedback(outcome: GuessOutcome) {
     if (outcome === 'miss') return
@@ -81,24 +166,6 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
     return () => window.clearTimeout(timer)
   }, [value, disabled])
 
-  function preserveScrollBeforeFocus() {
-    focusScrollRef.current = window.scrollY
-  }
-
-  function restoreScrollAfterFocus() {
-    const targetY = focusScrollRef.current
-
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: targetY, behavior: 'auto' })
-    })
-
-    window.setTimeout(() => {
-      if (document.activeElement === inputRef.current && Math.abs(window.scrollY - targetY) > 6) {
-        window.scrollTo({ top: targetY, behavior: 'auto' })
-      }
-    }, 220)
-  }
-
   function handleChange(nextValue: string) {
     versionRef.current += 1
     latestValueRef.current = nextValue
@@ -123,17 +190,16 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
             <input
               ref={inputRef}
               value={value}
-              onPointerDown={preserveScrollBeforeFocus}
-              onTouchStart={preserveScrollBeforeFocus}
-              onFocus={restoreScrollAfterFocus}
+              onPointerDown={handlePointerDown}
+              onBlur={handleBlur}
               onChange={(event) => handleChange(event.target.value)}
               type="text"
               inputMode="text"
               enterKeyHint="go"
               autoComplete="off"
-              autoCorrect="off"
+              autoCorrect="on"
               autoCapitalize="none"
-              spellCheck={false}
+              spellCheck
               placeholder="Digite uma palavra"
               disabled={disabled}
               aria-label="Digite uma palavra da música"
