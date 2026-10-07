@@ -7,7 +7,7 @@ type GuessInputProps = {
   onGiveUp: () => void
 }
 
-const AUTO_CHECK_DELAY = 280
+const AUTO_CHECK_DELAY = 80
 const FEEDBACK_DURATION = 520
 
 export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
