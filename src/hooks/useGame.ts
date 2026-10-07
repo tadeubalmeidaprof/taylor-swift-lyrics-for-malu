@@ -14,6 +14,7 @@ export function useGame() {
   const [session, setSession] = useState<GameSession | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [startError, setStartError] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
 
   const refreshState = useCallback(async (sessionToken: string) => {
@@ -92,8 +93,11 @@ export function useGame() {
   }, [session?.sessionToken, session?.expiresAt, session?.status, refreshState])
 
   const start = useCallback(async () => {
+    if (loading) return
+
     setLoading(true)
     setMessage('')
+    setStartError('')
 
     try {
       const data = await startRandomGame(clientId)
@@ -113,10 +117,13 @@ export function useGame() {
       localStorage.setItem(SESSION_KEY, data.session_token)
       setSession(next)
       setRemainingSeconds(data.time_limit_seconds)
+    } catch (error) {
+      console.error('Falha ao iniciar partida:', error)
+      setStartError('Não consegui iniciar a partida. Toque em PLAY para tentar novamente.')
     } finally {
       setLoading(false)
     }
-  }, [clientId])
+  }, [clientId, loading])
 
   const guess = useCallback(async (value: string) => {
     if (!session || session.status !== 'active') return
@@ -179,6 +186,7 @@ export function useGame() {
     session,
     loading,
     message,
+    startError,
     remainingSeconds,
     progress,
     start,
