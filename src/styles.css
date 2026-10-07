@@ -385,7 +385,8 @@ button {
 }
 
 .timer-urgent {
-  color: #ffd173;
+  color: #ffb06a;
+  text-shadow: 0 0 18px rgba(255,176,106,.22);
 }
 
 .progress-track {
@@ -475,7 +476,10 @@ button {
 }
 
 .guess-flash-already {
-  background: #77737e;
+  color: #2f2440;
+  background: #e7ddf3;
+  border: 1px solid #cab8df;
+  box-shadow: 0 8px 22px rgba(105,79,134,.14);
 }
 
 .guess-flash-error {
@@ -549,22 +553,37 @@ button {
   white-space: nowrap;
 }
 
-.end-bar > button {
+.end-actions {
+  display: flex;
   flex: 0 0 auto;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 999px;
-  color: #ffffff;
-  background: #1b1820;
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: .08em;
+  align-items: center;
+  gap: 7px;
 }
 
-.end-bar > button:disabled {
+.end-actions button {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .07em;
+}
+
+.end-actions button:disabled {
   opacity: .55;
+}
+
+.end-home-button {
+  border: 1px solid #d8d3dc;
+  color: #5f5864;
+  background: #ffffff;
+}
+
+.end-next-button {
+  border: 0;
+  color: #ffffff;
+  background: #1b1820;
 }
 
 .lyrics-panel {
@@ -639,7 +658,7 @@ button {
 .chorus-marker {
   display: flex;
   width: 100%;
-  height: 22px;
+  height: 29px;
   align-items: center;
   justify-content: center;
   border-right: 3px solid rgba(255,255,255,.94);
@@ -658,6 +677,75 @@ button {
   background: #fff0f2;
   font-weight: 800;
   text-shadow: none;
+}
+
+/* Loading transition */
+
+.loading-screen {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #fffafc;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(139,108,174,.17), transparent 30%),
+    #0f0d16;
+}
+
+.loading-screen > div {
+  grid-area: 1 / 1;
+}
+
+.loading-orbit {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 50%;
+  animation: loading-spin 1.6s linear infinite;
+}
+
+.loading-orbit::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e9dff0;
+  box-shadow: 0 0 16px rgba(233,223,240,.5);
+  transform: translateX(-50%);
+}
+
+.loading-orbit span {
+  position: absolute;
+  inset: 11px;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 50%;
+}
+
+.loading-copy {
+  margin-top: 150px;
+  text-align: center;
+}
+
+.loading-copy small {
+  display: block;
+  margin-bottom: 7px;
+  color: rgba(255,255,255,.38);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+.loading-copy strong {
+  color: #f5eff8;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 500;
 }
 
 /* Give-up confirmation */
@@ -795,6 +883,10 @@ button {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Responsive */
 
 @media (max-width: 359px) {
@@ -831,8 +923,12 @@ button {
     font-size: 9px;
   }
 
-  .lyric-token {
+  .lyric-token,
+  .chorus-marker {
     height: 27px;
+  }
+
+  .lyric-token {
     padding: 0 3px;
   }
 
@@ -927,7 +1023,7 @@ button {
     background: #f8f7f9;
   }
 
-  .end-bar > button:hover,
+  .end-next-button:hover,
   .dialog-primary:hover {
     opacity: .88;
   }
