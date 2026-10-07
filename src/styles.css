@@ -92,14 +92,6 @@ button {
   font-weight: 400;
 }
 
-.intro-copy {
-  max-width: 420px;
-  margin: 28px auto 34px;
-  color: rgba(255,255,255,.62);
-  font-size: 14px;
-  line-height: 1.7;
-}
-
 .play-button {
   position: relative;
   min-width: 150px;
@@ -135,10 +127,26 @@ button {
   position: absolute;
   z-index: 3;
   bottom: max(22px, env(safe-area-inset-bottom));
-  margin: 0;
-  color: rgba(255,255,255,.35);
+  left: 50%;
+  width: min(92%, 560px);
+  transform: translateX(-50%);
+  text-align: center;
+  color: rgba(255,255,255,.46);
   font-family: Georgia, "Times New Roman", serif;
+}
+
+.intro-footer p {
+  margin: 0;
   font-size: 13px;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.intro-footer span {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255,255,255,.32);
+  font-size: 12px;
   font-style: italic;
 }
 
@@ -496,9 +504,6 @@ button {
     font-size: 14px;
   }
 
-  .intro-copy {
-    font-size: 13px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
