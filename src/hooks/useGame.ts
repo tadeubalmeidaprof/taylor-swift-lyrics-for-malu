@@ -66,6 +66,7 @@ export function useGame() {
         ...current,
         status: state.status,
         foundWords: state.found_words,
+        foundPositions: new Set(state.found_positions || []),
         totalWords: state.total_words,
         timeLimitSeconds: state.time_limit_seconds,
         chorusRanges: state.chorus_ranges || [],
@@ -101,6 +102,7 @@ export function useGame() {
           expiresAt: new Date(Date.now() + state.time_remaining_seconds * 1000).toISOString(),
           chorusRanges: state.chorus_ranges || [],
           foundWords: state.found_words,
+          foundPositions: new Set(state.found_positions || []),
           revealed: toMap(state.revealed || []),
           wrongGuesses: state.wrong_guesses || [],
           status: state.status,
@@ -200,6 +202,7 @@ export function useGame() {
         expiresAt: data.expires_at,
         chorusRanges: data.chorus_ranges || [],
         foundWords: 0,
+        foundPositions: new Set(),
         revealed: new Map(),
         wrongGuesses: [],
         status: 'active',
@@ -233,13 +236,17 @@ export function useGame() {
         if (!current) return current
 
         const revealed = new Map(current.revealed)
+        const foundPositions = new Set(current.foundPositions)
+
         for (const item of data.revealed || []) {
           revealed.set(item.position, item.word)
+          foundPositions.add(item.position)
         }
 
         return {
           ...current,
           revealed,
+          foundPositions,
           foundWords: data.found_words,
           status: data.status,
         }
