@@ -72,7 +72,7 @@ export function useGame() {
   }, [clientId])
 
   useEffect(() => {
-    if (!session || session.status !== 'active') return false
+    if (!session || session.status !== 'active') return
 
     const tick = () => {
       const remaining = Math.max(
@@ -125,8 +125,8 @@ export function useGame() {
     }
   }, [clientId, loading])
 
-  const guess = useCallback(async (value: string) => {
-    if (!session || session.status !== 'active') return
+  const guess = useCallback(async (value: string): Promise<boolean> => {
+    if (!session || session.status !== 'active') return false
 
     const cleaned = value.trim()
     if (!cleaned) return false
