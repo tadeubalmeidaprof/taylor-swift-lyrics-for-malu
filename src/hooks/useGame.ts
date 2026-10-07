@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getGameState, giveUpGame, startRandomGame, submitLiveGuess } from '../services/gameApi'
 import type {
   GameSession,
@@ -9,9 +9,16 @@ import type {
 import { useStableClientId } from './useStableClientId'
 
 const SESSION_KEY = 'swifter-lyrics-active-session'
+const LAST_ACTIVITY_KEY = 'swifter-lyrics-last-activity'
+const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000
+const INACTIVITY_CHECK_MS = 30 * 1000
 
 function toMap(words: RevealedWord[]) {
   return new Map(words.map((item) => [item.position, item.word]))
+}
+
+function nowTimestamp() {
+  return Date.now()
 }
 
 export function useGame() {
@@ -20,6 +27,34 @@ export function useGame() {
   const [loading, setLoading] = useState(false)
   const [startError, setStartError] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
+  const activityWriteRef = useRef(0)
+
+  const markActivity = useCallback(() => {
+    const now = nowTimestamp()
+
+    if (now - activityWriteRef.current < 1000) return
+
+    activityWriteRef.current = now
+    localStorage.setItem(LAST_ACTIVITY_KEY, String(now))
+  }, [])
+
+  const clearLocalSession = useCallback(() => {
+    localStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(LAST_ACTIVITY_KEY)
+    setSession(null)
+    setRemainingSeconds(0)
+    setStartError('')
+  }, [])
+
+  const isInactive = useCallback(() => {
+    const raw = localStorage.getItem(LAST_ACTIVITY_KEY)
+    if (!raw) return true
+
+    const lastActivity = Number(raw)
+    if (!Number.isFinite(lastActivity)) return true
+
+    return nowTimestamp() - lastActivity >= INACTIVITY_TIMEOUT_MS
+  }, [])
 
   const refreshState = useCallback(async (sessionToken: string) => {
     const state = await getGameState(sessionToken)
@@ -49,6 +84,11 @@ export function useGame() {
     const saved = localStorage.getItem(SESSION_KEY)
     if (!saved) return
 
+    if (isInactive()) {
+      clearLocalSession()
+      return
+    }
+
     setLoading(true)
 
     getGameState(saved)
@@ -74,9 +114,46 @@ export function useGame() {
           localStorage.removeItem(SESSION_KEY)
         }
       })
-      .catch(() => localStorage.removeItem(SESSION_KEY))
+      .catch(() => clearLocalSession())
       .finally(() => setLoading(false))
-  }, [clientId])
+  }, [clientId, clearLocalSession, isInactive])
+
+  useEffect(() => {
+    if (!session) return
+
+    const handleInteraction = () => {
+      markActivity()
+    }
+
+    const checkInactivity = () => {
+      if (isInactive()) {
+        clearLocalSession()
+      }
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkInactivity()
+      }
+    }
+
+    window.addEventListener('pointerdown', handleInteraction, { passive: true })
+    window.addEventListener('keydown', handleInteraction)
+    window.addEventListener('touchstart', handleInteraction, { passive: true })
+    window.addEventListener('focus', checkInactivity)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    const id = window.setInterval(checkInactivity, INACTIVITY_CHECK_MS)
+
+    return () => {
+      window.removeEventListener('pointerdown', handleInteraction)
+      window.removeEventListener('keydown', handleInteraction)
+      window.removeEventListener('touchstart', handleInteraction)
+      window.removeEventListener('focus', checkInactivity)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.clearInterval(id)
+    }
+  }, [session, markActivity, isInactive, clearLocalSession])
 
   useEffect(() => {
     if (!session || session.status !== 'active') return
@@ -129,6 +206,8 @@ export function useGame() {
       }
 
       localStorage.setItem(SESSION_KEY, data.session_token)
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(nowTimestamp()))
+      activityWriteRef.current = nowTimestamp()
       setSession(next)
       setRemainingSeconds(data.time_limit_seconds)
     } catch (error) {
@@ -144,6 +223,8 @@ export function useGame() {
 
     const cleaned = value.trim()
     if (!cleaned) return 'miss'
+
+    markActivity()
 
     try {
       const data = await submitLiveGuess(session.sessionToken, cleaned)
@@ -178,11 +259,12 @@ export function useGame() {
       console.error('Falha ao verificar palavra:', error)
       return 'error'
     }
-  }, [session, refreshState])
+  }, [session, refreshState, markActivity])
 
   const giveUp = useCallback(async () => {
     if (!session || session.status !== 'active' || loading) return
 
+    markActivity()
     setLoading(true)
 
     try {
@@ -192,7 +274,7 @@ export function useGame() {
     } finally {
       setLoading(false)
     }
-  }, [session, loading, refreshState])
+  }, [session, loading, refreshState, markActivity])
 
   const progress = useMemo(() => {
     if (!session?.totalWords) return 0
