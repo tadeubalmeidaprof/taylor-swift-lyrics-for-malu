@@ -46,11 +46,6 @@ export function useGame() {
     setLoading(true)
     getGameState(saved)
       .then((state: GetGameStateResponse) => {
-        if (state.status !== 'active') {
-          localStorage.removeItem(SESSION_KEY)
-          return
-        }
-
         setSession({
           sessionToken: saved,
           clientId,
@@ -66,6 +61,10 @@ export function useGame() {
           finalAlbum: state.final_album,
         })
         setRemainingSeconds(state.time_remaining_seconds)
+
+        if (state.status !== 'active') {
+          localStorage.removeItem(SESSION_KEY)
+        }
       })
       .catch(() => localStorage.removeItem(SESSION_KEY))
       .finally(() => setLoading(false))
@@ -171,13 +170,6 @@ export function useGame() {
     }
   }, [session, refreshState])
 
-  const reset = useCallback(() => {
-    localStorage.removeItem(SESSION_KEY)
-    setSession(null)
-    setMessage('')
-    setRemainingSeconds(0)
-  }, [])
-
   const progress = useMemo(() => {
     if (!session?.totalWords) return 0
     return Math.round((session.foundWords / session.totalWords) * 100)
@@ -191,6 +183,5 @@ export function useGame() {
     progress,
     start,
     guess,
-    reset,
   }
 }
