@@ -16,6 +16,7 @@ export default function App() {
     session,
     loading,
     message,
+    startError,
     remainingSeconds,
     progress,
     start,
@@ -27,7 +28,7 @@ export default function App() {
   }, [session])
 
   if (!session) {
-    return <IntroScreen onPlay={start} loading={loading} />
+    return <IntroScreen onPlay={start} loading={loading} error={startError} />
   }
 
   if (session.status !== 'active') {
