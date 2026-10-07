@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: swifter-lyrics-for-malu
+    name: swifterlyricsformalu
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
