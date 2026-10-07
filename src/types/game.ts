@@ -42,7 +42,6 @@ export type SubmitGuessResponse = {
   already_guessed: boolean
   matched_count: number
   found_words: number
-  found_positions: number[]
   total_words: number
   time_remaining_seconds: number
   revealed: RevealedWord[]
@@ -51,6 +50,7 @@ export type SubmitGuessResponse = {
 export type GetGameStateResponse = {
   status: GameStatus
   found_words: number
+  found_positions: number[]
   total_words: number
   time_limit_seconds: number
   time_remaining_seconds: number
