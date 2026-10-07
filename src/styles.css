@@ -575,10 +575,22 @@ button {
 .lyrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-content: start;
+  align-items: start;
   width: 100%;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--grid);
+}
+
+.lyrics-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.lyric-stack-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
 }
 
 .lyric-token {
@@ -624,32 +636,28 @@ button {
   background: var(--grid-chorus);
 }
 
-.chorus-label {
-  position: relative;
-  grid-column: 1 / -1;
+.chorus-marker {
   display: flex;
-  height: 32px;
+  width: 100%;
+  height: 22px;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  border-top: 3px solid #ffffff;
-  border-bottom: 3px solid #ffffff;
-  color: #241d05;
-  background: #f4d84f;
-  font-size: 11px;
+  border-right: 3px solid rgba(255,255,255,.94);
+  border-bottom: 1px solid var(--grid-line);
+  color: #3d3208;
+  background: var(--gold);
+  font-size: 8px;
   font-weight: 900;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  text-shadow: none;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.38);
+  letter-spacing: .04em;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.chorus-label::before,
-.chorus-label::after {
-  content: "";
-  width: 34px;
-  height: 1px;
-  background: rgba(36,29,5,.48);
+.lyric-token-missed {
+  color: #b4233a;
+  background: #fff0f2;
+  font-weight: 800;
+  text-shadow: none;
 }
 
 /* Give-up confirmation */
@@ -767,15 +775,16 @@ button {
 
 @keyframes cell-reveal {
   0% {
-    color: transparent;
+    opacity: .35;
     filter: brightness(1.65);
     transform: scale(.96);
   }
   60% {
+    opacity: .8;
     filter: brightness(1.2);
   }
   100% {
-    color: rgba(255,255,255,.96);
+    opacity: 1;
     filter: brightness(1);
     transform: scale(1);
   }
