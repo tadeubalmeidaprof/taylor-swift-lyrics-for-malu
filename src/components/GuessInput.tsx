@@ -1,43 +1,82 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
+import type { GuessOutcome } from '../types/game'
 
 type GuessInputProps = {
   disabled?: boolean
-  message?: string
-  onGuess: (value: string) => Promise<boolean>
+  onGuess: (value: string) => Promise<GuessOutcome>
+  onGiveUp: () => void
 }
 
-const AUTO_CHECK_DELAY = 350
+const AUTO_CHECK_DELAY = 280
+const FEEDBACK_DURATION = 520
 
-export function GuessInput({ disabled, message, onGuess }: GuessInputProps) {
+export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
   const [value, setValue] = useState('')
+  const [feedback, setFeedback] = useState<GuessOutcome | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const latestValueRef = useRef('')
-  const lastCheckedRef = useRef('')
+  const versionRef = useRef(0)
+  const feedbackTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!disabled) inputRef.current?.focus({ preventScroll: true })
   }, [disabled])
 
   useEffect(() => {
-    latestValueRef.current = value
-
-    const guess = value.trim()
-    if (!guess || disabled || guess === lastCheckedRef.current) return
-
-    const timer = window.setTimeout(async () => {
-      lastCheckedRef.current = guess
-      const accepted = await onGuess(guess)
-
-      if (accepted && latestValueRef.current.trim() === guess) {
-        latestValueRef.current = ''
-        lastCheckedRef.current = ''
-        setValue('')
-        inputRef.current?.focus({ preventScroll: true })
+    return () => {
+      if (feedbackTimerRef.current) {
+        window.clearTimeout(feedbackTimerRef.current)
       }
+    }
+  }, [])
+
+  function showFeedback(outcome: GuessOutcome) {
+    if (outcome === 'miss') return
+
+    setFeedback(outcome)
+
+    if (feedbackTimerRef.current) {
+      window.clearTimeout(feedbackTimerRef.current)
+    }
+
+    feedbackTimerRef.current = window.setTimeout(() => {
+      setFeedback(null)
+    }, FEEDBACK_DURATION)
+  }
+
+  async function checkGuess(guess: string, requestVersion: number) {
+    const outcome = await onGuess(guess)
+
+    if (requestVersion !== versionRef.current) return
+
+    showFeedback(outcome)
+
+    if ((outcome === 'correct' || outcome === 'already') && latestValueRef.current.trim() === guess) {
+      versionRef.current += 1
+      latestValueRef.current = ''
+      setValue('')
+      inputRef.current?.focus({ preventScroll: true })
+    }
+  }
+
+  useEffect(() => {
+    const guess = value.trim()
+    if (!guess || disabled) return
+
+    const requestVersion = versionRef.current
+
+    const timer = window.setTimeout(() => {
+      void checkGuess(guess, requestVersion)
     }, AUTO_CHECK_DELAY)
 
     return () => window.clearTimeout(timer)
-  }, [value, disabled, onGuess])
+  }, [value, disabled])
+
+  function handleChange(nextValue: string) {
+    versionRef.current += 1
+    latestValueRef.current = nextValue
+    setValue(nextValue)
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -45,42 +84,58 @@ export function GuessInput({ disabled, message, onGuess }: GuessInputProps) {
     const guess = value.trim()
     if (!guess || disabled) return
 
-    lastCheckedRef.current = guess
-    const accepted = await onGuess(guess)
-
-    if (accepted && latestValueRef.current.trim() === guess) {
-      latestValueRef.current = ''
-      lastCheckedRef.current = ''
-      setValue('')
-      inputRef.current?.focus({ preventScroll: true })
-    }
-  }
-
-  function handleChange(nextValue: string) {
-    latestValueRef.current = nextValue
-    setValue(nextValue)
+    const requestVersion = versionRef.current
+    await checkGuess(guess, requestVersion)
   }
 
   return (
     <div className="guess-area">
-      <form className="guess-form" onSubmit={handleSubmit}>
-        <input
-          ref={inputRef}
-          value={value}
-          onChange={(event) => handleChange(event.target.value)}
-          type="text"
-          inputMode="text"
-          enterKeyHint="go"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          placeholder="Digite uma palavra"
+      <div className="guess-toolbar">
+        <div className="guess-main">
+          <form className="guess-form" onSubmit={handleSubmit}>
+            <input
+              ref={inputRef}
+              value={value}
+              onChange={(event) => handleChange(event.target.value)}
+              type="text"
+              inputMode="text"
+              enterKeyHint="go"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="Digite uma palavra"
+              disabled={disabled}
+              aria-label="Digite uma palavra da música"
+            />
+          </form>
+
+          {feedback && feedback !== 'miss' && (
+            <div
+              className={[
+                'guess-flash',
+                feedback === 'correct' ? 'guess-flash-correct' : '',
+                feedback === 'already' ? 'guess-flash-already' : '',
+                feedback === 'error' ? 'guess-flash-error' : '',
+              ].filter(Boolean).join(' ')}
+              aria-live="polite"
+            >
+              {feedback === 'correct' && '✓ CORRETO'}
+              {feedback === 'already' && 'JÁ ENCONTRADA'}
+              {feedback === 'error' && 'TENTE NOVAMENTE'}
+            </div>
+          )}
+        </div>
+
+        <button
+          className="give-up-button"
+          type="button"
+          onClick={onGiveUp}
           disabled={disabled}
-          aria-label="Digite uma palavra da música"
-        />
-      </form>
-      <div className="guess-feedback" aria-live="polite">{message}</div>
+        >
+          Desistir
+        </button>
+      </div>
     </div>
   )
 }
