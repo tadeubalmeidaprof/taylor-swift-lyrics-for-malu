@@ -1,9 +1,15 @@
+import { useEffect } from 'react'
 import { GameHeader } from './components/GameHeader'
 import { GuessInput } from './components/GuessInput'
 import { IntroScreen } from './components/IntroScreen'
 import { LyricsGrid } from './components/LyricsGrid'
 import { ResultScreen } from './components/ResultScreen'
 import { useGame } from './hooks/useGame'
+
+function setThemeColor(color: string) {
+  const meta = document.querySelector('meta[name="theme-color"]')
+  meta?.setAttribute('content', color)
+}
 
 export default function App() {
   const {
@@ -15,6 +21,10 @@ export default function App() {
     start,
     guess,
   } = useGame()
+
+  useEffect(() => {
+    setThemeColor(session ? '#ffffff' : '#0f0d16')
+  }, [session])
 
   if (!session) {
     return <IntroScreen onPlay={start} loading={loading} />
