@@ -138,6 +138,15 @@ button {
   opacity: .6;
 }
 
+.intro-error {
+  min-height: 18px;
+  max-width: 280px;
+  margin: 10px auto 0;
+  color: rgba(255, 224, 232, .76);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .intro-footer {
   position: absolute;
   z-index: 3;
