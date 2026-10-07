@@ -29,6 +29,14 @@ export async function submitLiveGuess(sessionToken: string, guess: string) {
   return firstRow<SubmitGuessResponse>(data as SubmitGuessResponse[])
 }
 
+export async function giveUpGame(sessionToken: string) {
+  const { error } = await supabase.rpc('give_up_game', {
+    p_session_token: sessionToken,
+  })
+
+  if (error) throw error
+}
+
 export async function getGameState(sessionToken: string) {
   const { data, error } = await supabase.rpc('get_game_state', {
     p_session_token: sessionToken,
