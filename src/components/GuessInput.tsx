@@ -151,7 +151,7 @@ export function GuessInput({ disabled, onGuess, onGiveUp }: GuessInputProps) {
               aria-live="polite"
             >
               {feedback === 'correct' && '✓ CORRETO'}
-              {feedback === 'already' && 'JÁ ENCONTRADA'}
+              {feedback === 'already' && '↺ JÁ ENCONTRADA'}
               {feedback === 'error' && 'TENTE NOVAMENTE'}
             </div>
           )}
