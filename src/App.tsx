@@ -5,6 +5,7 @@ import { GiveUpDialog } from './components/GiveUpDialog'
 import { GuessInput } from './components/GuessInput'
 import { IntroScreen } from './components/IntroScreen'
 import { LyricsGrid } from './components/LyricsGrid'
+import { LoadingScreen } from './components/LoadingScreen'
 import { useGame } from './hooks/useGame'
 
 function setThemeColor(color: string) {
@@ -24,6 +25,7 @@ export default function App() {
     start,
     guess,
     giveUp,
+    goHome,
   } = useGame()
 
   useEffect(() => {
@@ -31,7 +33,11 @@ export default function App() {
   }, [session])
 
   if (!session) {
-    return <IntroScreen onPlay={start} loading={loading} error={startError} />
+    if (loading) {
+      return <LoadingScreen />
+    }
+
+    return <IntroScreen onPlay={start} loading={false} error={startError} />
   }
 
   const active = session.status === 'active'
@@ -63,6 +69,7 @@ export default function App() {
             title={session.finalTitle}
             album={session.finalAlbum}
             onNext={start}
+            onHome={goHome}
             loading={loading}
           />
         )}
