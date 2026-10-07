@@ -4,8 +4,6 @@ type IntroScreenProps = {
   error?: string
 }
 
-const braceletBeads = ['M', 'A', 'L', 'U', '♡', '1', '3']
-
 export function IntroScreen({ onPlay, loading = false, error = '' }: IntroScreenProps) {
   return (
     <main className="intro-screen">
@@ -37,20 +35,6 @@ export function IntroScreen({ onPlay, loading = false, error = '' }: IntroScreen
           <span>Swifter Lyrics</span>
           <em>for Malu</em>
         </h1>
-
-        <div className="friendship-bracelet" aria-hidden="true">
-          <span className="bracelet-thread" />
-          <div className="bracelet-beads">
-            {braceletBeads.map((bead, index) => (
-              <span
-                key={bead + index}
-                className={"bracelet-bead bracelet-bead-" + ((index % 4) + 1)}
-              >
-                {bead}
-              </span>
-            ))}
-          </div>
-        </div>
 
         <button
           className="play-button"
