@@ -23,10 +23,6 @@ export function IntroScreen({ onPlay, loading = false }: IntroScreenProps) {
           <em>for Malu</em>
         </h1>
 
-        <p className="intro-copy">
-          Uma música. Todas as palavras escondidas. Um cronômetro.
-        </p>
-
         <button
           className="play-button"
           type="button"
@@ -37,7 +33,10 @@ export function IntroScreen({ onPlay, loading = false }: IntroScreenProps) {
         </button>
       </section>
 
-      <p className="intro-footer">a little game for Malu ♡</p>
+      <div className="intro-footer">
+        <p>Do seu maior fã, para a maior fã da Taylor. Te amo!</p>
+        <span>Tadeu</span>
+      </div>
     </main>
   )
 }
