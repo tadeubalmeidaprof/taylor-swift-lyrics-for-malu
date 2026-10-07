@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getGameState, startRandomGame, submitLiveGuess } from '../services/gameApi'
-import type { GameSession, GetGameStateResponse, RevealedWord } from '../types/game'
+import { getGameState, giveUpGame, startRandomGame, submitLiveGuess } from '../services/gameApi'
+import type {
+  GameSession,
+  GetGameStateResponse,
+  GuessOutcome,
+  RevealedWord,
+} from '../types/game'
 import { useStableClientId } from './useStableClientId'
 
 const SESSION_KEY = 'swifter-lyrics-active-session'
@@ -13,7 +18,6 @@ export function useGame() {
   const clientId = useStableClientId()
   const [session, setSession] = useState<GameSession | null>(null)
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
   const [startError, setStartError] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
 
@@ -22,6 +26,7 @@ export function useGame() {
 
     setSession((current) => {
       if (!current) return current
+
       return {
         ...current,
         status: state.status,
@@ -45,6 +50,7 @@ export function useGame() {
     if (!saved) return
 
     setLoading(true)
+
     getGameState(saved)
       .then((state: GetGameStateResponse) => {
         setSession({
@@ -61,6 +67,7 @@ export function useGame() {
           finalTitle: state.final_title,
           finalAlbum: state.final_album,
         })
+
         setRemainingSeconds(state.time_remaining_seconds)
 
         if (state.status !== 'active') {
@@ -74,6 +81,8 @@ export function useGame() {
   useEffect(() => {
     if (!session || session.status !== 'active') return
 
+    let expiryRequested = false
+
     const tick = () => {
       const remaining = Math.max(
         0,
@@ -82,8 +91,13 @@ export function useGame() {
 
       setRemainingSeconds(remaining)
 
-      if (remaining === 0) {
-        refreshState(session.sessionToken).catch(() => undefined)
+      if (remaining === 0 && !expiryRequested) {
+        expiryRequested = true
+        refreshState(session.sessionToken)
+          .then(() => localStorage.removeItem(SESSION_KEY))
+          .catch(() => {
+            expiryRequested = false
+          })
       }
     }
 
@@ -96,11 +110,11 @@ export function useGame() {
     if (loading) return
 
     setLoading(true)
-    setMessage('')
     setStartError('')
 
     try {
       const data = await startRandomGame(clientId)
+
       const next: GameSession = {
         sessionToken: data.session_token,
         clientId: data.client_id,
@@ -125,13 +139,11 @@ export function useGame() {
     }
   }, [clientId, loading])
 
-  const guess = useCallback(async (value: string): Promise<boolean> => {
-    if (!session || session.status !== 'active') return false
+  const guess = useCallback(async (value: string): Promise<GuessOutcome> => {
+    if (!session || session.status !== 'active') return 'miss'
 
     const cleaned = value.trim()
-    if (!cleaned) return false
-
-    setMessage('')
+    if (!cleaned) return 'miss'
 
     try {
       const data = await submitLiveGuess(session.sessionToken, cleaned)
@@ -154,23 +166,33 @@ export function useGame() {
 
       setRemainingSeconds(data.time_remaining_seconds)
 
-      if (data.already_guessed) {
-        setMessage('Você já encontrou essa palavra.')
-      } else if (data.correct && data.matched_count > 1) {
-        setMessage('+' + data.matched_count + ' palavras reveladas')
-      }
-
       if (data.status !== 'active') {
         await refreshState(session.sessionToken)
         localStorage.removeItem(SESSION_KEY)
       }
 
-      return data.correct || data.already_guessed
-    } catch {
-      setMessage('Não foi possível verificar essa palavra. Tente novamente.')
-      return false
+      if (data.already_guessed) return 'already'
+      if (data.correct) return 'correct'
+      return 'miss'
+    } catch (error) {
+      console.error('Falha ao verificar palavra:', error)
+      return 'error'
     }
   }, [session, refreshState])
+
+  const giveUp = useCallback(async () => {
+    if (!session || session.status !== 'active' || loading) return
+
+    setLoading(true)
+
+    try {
+      await giveUpGame(session.sessionToken)
+      await refreshState(session.sessionToken)
+      localStorage.removeItem(SESSION_KEY)
+    } finally {
+      setLoading(false)
+    }
+  }, [session, loading, refreshState])
 
   const progress = useMemo(() => {
     if (!session?.totalWords) return 0
@@ -180,11 +202,11 @@ export function useGame() {
   return {
     session,
     loading,
-    message,
     startError,
     remainingSeconds,
     progress,
     start,
     guess,
+    giveUp,
   }
 }
