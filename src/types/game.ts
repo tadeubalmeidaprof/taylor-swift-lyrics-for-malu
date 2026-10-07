@@ -19,6 +19,7 @@ export type GameSession = {
   expiresAt: string
   chorusRanges: ChorusRange[]
   foundWords: number
+  foundPositions: Set<number>
   revealed: Map<number, string>
   wrongGuesses: string[]
   status: GameStatus
@@ -41,6 +42,7 @@ export type SubmitGuessResponse = {
   already_guessed: boolean
   matched_count: number
   found_words: number
+  found_positions: number[]
   total_words: number
   time_remaining_seconds: number
   revealed: RevealedWord[]
