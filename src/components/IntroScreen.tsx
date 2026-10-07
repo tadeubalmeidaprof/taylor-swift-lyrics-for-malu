@@ -1,11 +1,12 @@
 type IntroScreenProps = {
   onPlay: () => void
   loading?: boolean
+  error?: string
 }
 
 const braceletBeads = ['M', 'A', 'L', 'U', '♡', '1', '3']
 
-export function IntroScreen({ onPlay, loading = false }: IntroScreenProps) {
+export function IntroScreen({ onPlay, loading = false, error = '' }: IntroScreenProps) {
   return (
     <main className="intro-screen">
       <div className="ambient ambient-a" />
@@ -57,8 +58,12 @@ export function IntroScreen({ onPlay, loading = false }: IntroScreenProps) {
           onClick={onPlay}
           disabled={loading}
         >
-          <span>{loading ? 'LOADING' : 'PLAY'}</span>
+          <span>{loading ? 'AGUARDE' : 'PLAY'}</span>
         </button>
+
+        <p className="intro-error" role="status" aria-live="polite">
+          {error}
+        </p>
       </section>
 
       <div className="intro-footer">
