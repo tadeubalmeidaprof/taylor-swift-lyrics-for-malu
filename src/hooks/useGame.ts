@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getGameState, startRandomGame, submitGuess } from '../services/gameApi'
+import { getGameState, startRandomGame, submitLiveGuess } from '../services/gameApi'
 import type { GameSession, GetGameStateResponse, RevealedWord } from '../types/game'
 import { useStableClientId } from './useStableClientId'
 
@@ -72,7 +72,7 @@ export function useGame() {
   }, [clientId])
 
   useEffect(() => {
-    if (!session || session.status !== 'active') return
+    if (!session || session.status !== 'active') return false
 
     const tick = () => {
       const remaining = Math.max(
@@ -129,12 +129,12 @@ export function useGame() {
     if (!session || session.status !== 'active') return
 
     const cleaned = value.trim()
-    if (!cleaned) return
+    if (!cleaned) return false
 
     setMessage('')
 
     try {
-      const data = await submitGuess(session.sessionToken, cleaned)
+      const data = await submitLiveGuess(session.sessionToken, cleaned)
 
       setSession((current) => {
         if (!current) return current
@@ -144,15 +144,9 @@ export function useGame() {
           revealed.set(item.position, item.word)
         }
 
-        const wrongGuesses =
-          !data.correct && !data.already_guessed
-            ? Array.from(new Set([...current.wrongGuesses, cleaned]))
-            : current.wrongGuesses
-
         return {
           ...current,
           revealed,
-          wrongGuesses,
           foundWords: data.found_words,
           status: data.status,
         }
@@ -161,10 +155,8 @@ export function useGame() {
       setRemainingSeconds(data.time_remaining_seconds)
 
       if (data.already_guessed) {
-        setMessage('Você já tentou “' + cleaned + '”.')
-      } else if (!data.correct) {
-        setMessage('“' + cleaned + '” não aparece.')
-      } else if (data.matched_count > 1) {
+        setMessage('Você já encontrou essa palavra.')
+      } else if (data.correct && data.matched_count > 1) {
         setMessage('+' + data.matched_count + ' palavras reveladas')
       }
 
@@ -172,8 +164,11 @@ export function useGame() {
         await refreshState(session.sessionToken)
         localStorage.removeItem(SESSION_KEY)
       }
+
+      return data.correct || data.already_guessed
     } catch {
       setMessage('Não foi possível verificar essa palavra. Tente novamente.')
+      return false
     }
   }, [session, refreshState])
 
