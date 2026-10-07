@@ -38,7 +38,7 @@ export async function giveUpGame(sessionToken: string) {
 }
 
 export async function getGameState(sessionToken: string) {
-  const { data, error } = await supabase.rpc('get_game_state', {
+  const { data, error } = await supabase.rpc('get_game_state_v2', {
     p_session_token: sessionToken,
   })
 
