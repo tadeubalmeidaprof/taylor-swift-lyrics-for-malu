@@ -9,6 +9,7 @@ export type RevealedWord = {
 }
 
 export type GameStatus = 'active' | 'completed' | 'expired' | 'abandoned'
+export type GuessOutcome = 'correct' | 'already' | 'miss' | 'error'
 
 export type GameSession = {
   sessionToken: string
