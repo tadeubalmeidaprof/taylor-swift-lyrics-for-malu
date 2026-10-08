@@ -1124,45 +1124,33 @@ button {
 }
 
 @media (max-width: 699px) {
-  /* Estabiliza o Safari: a página externa nunca rola durante a partida.
-     A altura acompanha o visualViewport quando o teclado aparece. */
+  /* Teste A/B: rolagem natural, sem bloquear o viewport do Safari. */
   .game-screen {
-    position: fixed;
-    top: var(--game-viewport-top, 0px);
-    right: 0;
-    left: 0;
-    width: 100%;
-    height: var(--game-viewport-height, 100dvh);
-    min-height: 0;
-    overflow: hidden;
-    overscroll-behavior: none;
+    position: static;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
   }
 
   .game-shell {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
-    overflow: hidden;
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
+    overflow: visible;
   }
 
   .game-header {
-    position: relative;
-    top: auto;
-    z-index: 3;
-    order: 0;
-    flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    z-index: 40;
   }
 
   .guess-area,
   .end-bar {
-    position: relative;
-    top: auto;
-    z-index: 4;
-    order: 1;
-    flex: 0 0 auto;
+    position: sticky;
+    top: calc(66px + env(safe-area-inset-top));
+    z-index: 35;
     border-top: 0;
     border-bottom: 1px solid #dddde2;
   }
@@ -1177,16 +1165,11 @@ button {
   }
 
   .lyrics-panel {
-    order: 2;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+    min-height: 65vh;
+    overflow: visible;
+    overscroll-behavior: auto;
   }
 
-  /* Os controles permanecem visíveis no topo, mesmo com o teclado aberto. */
   .game-stat-row {
     min-height: 62px;
     padding-top: 11px;
