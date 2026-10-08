@@ -50,9 +50,30 @@ export function GameHeader({
               onClick={onTogglePause}
               aria-pressed={paused}
               aria-label={paused ? 'Continuar partida' : 'Pausar partida'}
+              title={paused ? 'Continuar partida' : 'Pausar partida'}
             >
-              <span aria-hidden="true">{paused ? '▶' : 'Ⅱ'}</span>
-              {pausePending ? 'AGUARDE' : paused ? 'CONTINUAR' : 'PAUSAR'}
+              {paused ? (
+                <svg
+                  aria-hidden="true"
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M8 5.5a1 1 0 0 1 1.5-.86l9 6.5a1 1 0 0 1 0 1.72l-9 6.5A1 1 0 0 1 8 18.5z" />
+                </svg>
+              ) : (
+                <svg
+                  aria-hidden="true"
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+              )}
             </button>
           )}
         </div>
