@@ -3,6 +3,7 @@ import type {
   GetGameStateResponse,
   StartGameResponse,
   SubmitGuessResponse,
+  SetGamePausedResponse,
 } from '../types/game'
 
 function firstRow<T>(data: T[] | T | null): T {
@@ -38,10 +39,20 @@ export async function giveUpGame(sessionToken: string) {
 }
 
 export async function getGameState(sessionToken: string) {
-  const { data, error } = await supabase.rpc('get_game_state_v2', {
+  const { data, error } = await supabase.rpc('get_game_state_v3', {
     p_session_token: sessionToken,
   })
 
   if (error) throw error
   return firstRow<GetGameStateResponse>(data as GetGameStateResponse[])
+}
+
+export async function setGamePaused(sessionToken: string, paused: boolean) {
+  const { data, error } = await supabase.rpc('set_game_paused', {
+    p_session_token: sessionToken,
+    p_paused: paused,
+  })
+
+  if (error) throw error
+  return firstRow<SetGamePausedResponse>(data as SetGamePausedResponse[])
 }
