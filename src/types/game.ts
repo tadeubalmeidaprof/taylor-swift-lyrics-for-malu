@@ -17,6 +17,7 @@ export type GameSession = {
   totalWords: number
   timeLimitSeconds: number
   expiresAt: string
+  paused: boolean
   chorusRanges: ChorusRange[]
   foundWords: number
   foundPositions: Set<number>
@@ -59,4 +60,13 @@ export type GetGameStateResponse = {
   wrong_guesses: string[]
   final_title: string | null
   final_album: string | null
+  paused: boolean
+  expires_at: string
+}
+
+export type SetGamePausedResponse = {
+  status: GameStatus
+  paused: boolean
+  time_remaining_seconds: number
+  expires_at: string
 }
