@@ -26,11 +26,51 @@ export default function App() {
     guess,
     giveUp,
     goHome,
+    togglePause,
+    pausePending,
+    pauseError,
   } = useGame()
 
   useEffect(() => {
     setThemeColor(session ? '#000000' : '#0f0d16')
   }, [session])
+
+  useEffect(() => {
+    if (!session || !window.matchMedia('(max-width: 699px)').matches) return
+
+    // iOS: painel com altura real visível (exclui o teclado).
+    // Só a letra rola; o input continua ancorado na parte inferior.
+    const viewport = window.visualViewport
+    const root = document.documentElement
+    const previousOverflow = document.body.style.overflow
+
+    const syncViewport = () => {
+      root.style.setProperty(
+        '--game-viewport-height',
+        Math.round(viewport?.height ?? window.innerHeight) + 'px',
+      )
+      root.style.setProperty(
+        '--game-viewport-top',
+        Math.max(0, Math.round(viewport?.offsetTop ?? 0)) + 'px',
+      )
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.scrollTo({ top: 0, behavior: 'auto' })
+    syncViewport()
+    viewport?.addEventListener('resize', syncViewport)
+    viewport?.addEventListener('scroll', syncViewport)
+    window.addEventListener('resize', syncViewport)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      root.style.removeProperty('--game-viewport-height')
+      root.style.removeProperty('--game-viewport-top')
+      viewport?.removeEventListener('resize', syncViewport)
+      viewport?.removeEventListener('scroll', syncViewport)
+      window.removeEventListener('resize', syncViewport)
+    }
+  }, [session?.sessionToken])
 
   if (!session) {
     if (loading) {
@@ -55,11 +95,17 @@ export default function App() {
           total={session.totalWords}
           remainingSeconds={remainingSeconds}
           progress={progress}
+          active={session.status === 'active'}
+          paused={session.paused}
+          pausePending={pausePending}
+          pauseError={pauseError}
+          onTogglePause={() => void togglePause()}
         />
 
         {active ? (
           <GuessInput
-            disabled={loading}
+            disabled={loading || pausePending}
+            paused={session.paused}
             onGuess={guess}
             onGiveUp={() => setShowGiveUp(true)}
           />
