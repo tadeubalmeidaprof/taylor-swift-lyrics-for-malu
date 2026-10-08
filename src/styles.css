@@ -1051,26 +1051,24 @@ button {
 }
 
 .pause-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 80px;
-  min-height: 34px;
-  padding: 0 9px;
+  display: grid;
+  flex: 0 0 38px;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
   border: 1px solid rgba(255,255,255,.32);
-  border-radius: 999px;
+  border-radius: 50%;
   color: #ffffff;
   background: rgba(255,255,255,.08);
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: .04em;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.pause-button span {
-  font-size: 13px;
-  line-height: 1;
+.pause-button svg {
+  display: block;
 }
 
 .pause-button-resume {
@@ -1158,8 +1156,28 @@ button {
     flex: 0 0 auto;
   }
 
-  .lyrics-panel {
+  .guess-area,
+  .end-bar {
+    position: relative;
+    top: auto;
+    z-index: 4;
     order: 1;
+    flex: 0 0 auto;
+    border-top: 0;
+    border-bottom: 1px solid #dddde2;
+  }
+
+  .guess-area {
+    padding: 10px 10px 11px;
+  }
+
+  .guess-form input,
+  .give-up-button {
+    height: 48px;
+  }
+
+  .lyrics-panel {
+    order: 2;
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -1168,32 +1186,22 @@ button {
     -webkit-overflow-scrolling: touch;
   }
 
-  .guess-area,
-  .end-bar {
-    position: relative;
-    top: auto;
-    z-index: 4;
-    order: 2;
-    flex: 0 0 auto;
-    border-top: 1px solid #dddde2;
-    border-bottom: 0;
-  }
-
-  .guess-area {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-  }
-
-  .end-bar {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  /* Os controles permanecem visíveis no topo, mesmo com o teclado aberto. */
+  .game-stat-row {
+    min-height: 62px;
+    padding-top: 11px;
+    padding-bottom: 9px;
   }
 }
 
 @media (max-width: 359px) {
   .game-time-actions { gap: 6px; }
   .pause-button {
-    min-width: 72px;
-    padding: 0 6px;
-    font-size: 8px;
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
   }
   .score strong { font-size: 22px; }
   .timer { font-size: 21px; }
