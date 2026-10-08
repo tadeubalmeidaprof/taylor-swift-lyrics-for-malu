@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getGameState, giveUpGame, startRandomGame, submitLiveGuess } from '../services/gameApi'
+import { getGameState, giveUpGame, setGamePaused, startRandomGame, submitLiveGuess } from '../services/gameApi'
 import type {
   GameSession,
   GetGameStateResponse,
@@ -25,6 +25,8 @@ export function useGame() {
   const clientId = useStableClientId()
   const [session, setSession] = useState<GameSession | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pausePending, setPausePending] = useState(false)
+  const [pauseError, setPauseError] = useState('')
   const [startError, setStartError] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const activityWriteRef = useRef(0)
@@ -42,6 +44,7 @@ export function useGame() {
     localStorage.removeItem(SESSION_KEY)
     localStorage.removeItem(LAST_ACTIVITY_KEY)
     setSession(null)
+    setPauseError('')
     setRemainingSeconds(0)
     setStartError('')
   }, [])
@@ -65,6 +68,8 @@ export function useGame() {
       return {
         ...current,
         status: state.status,
+        paused: state.paused,
+        expiresAt: state.expires_at,
         foundWords: state.found_words,
         foundPositions: new Set(state.found_positions || []),
         totalWords: state.total_words,
@@ -85,21 +90,24 @@ export function useGame() {
     const saved = localStorage.getItem(SESSION_KEY)
     if (!saved) return
 
-    if (isInactive()) {
-      clearLocalSession()
-      return
-    }
-
+    // Uma partida pausada continua válida mesmo após 15 minutos sem interação.
+    // Consultamos o servidor antes de descartar uma sessão restaurada.
     setLoading(true)
 
     getGameState(saved)
       .then((state: GetGameStateResponse) => {
+        if (isInactive() && !state.paused) {
+          clearLocalSession()
+          return
+        }
+
         setSession({
           sessionToken: saved,
           clientId,
           totalWords: state.total_words,
           timeLimitSeconds: state.time_limit_seconds,
-          expiresAt: new Date(Date.now() + state.time_remaining_seconds * 1000).toISOString(),
+          expiresAt: state.expires_at,
+          paused: state.paused,
           chorusRanges: state.chorus_ranges || [],
           foundWords: state.found_words,
           foundPositions: new Set(state.found_positions || []),
@@ -128,7 +136,7 @@ export function useGame() {
     }
 
     const checkInactivity = () => {
-      if (isInactive()) {
+      if (!session.paused && isInactive()) {
         clearLocalSession()
       }
     }
@@ -163,6 +171,8 @@ export function useGame() {
     let expiryRequested = false
 
     const tick = () => {
+      if (session.paused) return
+
       const remaining = Math.max(
         0,
         Math.ceil((new Date(session.expiresAt).getTime() - Date.now()) / 1000),
@@ -183,7 +193,7 @@ export function useGame() {
     tick()
     const id = window.setInterval(tick, 1000)
     return () => window.clearInterval(id)
-  }, [session?.sessionToken, session?.expiresAt, session?.status, refreshState])
+  }, [session?.sessionToken, session?.expiresAt, session?.status, session?.paused, refreshState])
 
   const start = useCallback(async () => {
     if (loading) return
@@ -200,6 +210,7 @@ export function useGame() {
         totalWords: data.total_words,
         timeLimitSeconds: data.time_limit_seconds,
         expiresAt: data.expires_at,
+        paused: false,
         chorusRanges: data.chorus_ranges || [],
         foundWords: 0,
         foundPositions: new Set(),
@@ -213,6 +224,7 @@ export function useGame() {
       activityWriteRef.current = nowTimestamp()
       setSession(next)
       setRemainingSeconds(data.time_limit_seconds)
+      setPauseError('')
     } catch (error) {
       console.error('Falha ao iniciar partida:', error)
       setStartError('Não consegui iniciar a partida. Toque em PLAY para tentar novamente.')
@@ -222,7 +234,7 @@ export function useGame() {
   }, [clientId, loading])
 
   const guess = useCallback(async (value: string): Promise<GuessOutcome> => {
-    if (!session || session.status !== 'active') return 'miss'
+    if (!session || session.status !== 'active' || session.paused) return 'miss'
 
     const cleaned = value.trim()
     if (!cleaned) return 'miss'
@@ -268,6 +280,38 @@ export function useGame() {
     }
   }, [session, refreshState, markActivity])
 
+  const togglePause = useCallback(async () => {
+    if (!session || session.status !== 'active' || loading || pausePending) return
+    const token = session.sessionToken
+
+    setPausePending(true)
+    setPauseError('')
+    try {
+      const result = await setGamePaused(token, !session.paused)
+      setSession((current) => {
+        if (!current || current.sessionToken !== token) return current
+        return {
+          ...current,
+          status: result.status,
+          paused: result.paused,
+          expiresAt: result.expires_at,
+        }
+      })
+      setRemainingSeconds(result.time_remaining_seconds)
+      markActivity()
+
+      if (result.status !== 'active') {
+        await refreshState(token)
+        localStorage.removeItem(SESSION_KEY)
+      }
+    } catch (error) {
+      console.error('Erro ao pausar ou retomar:', error)
+      setPauseError('Não foi possível mudar a pausa. Tente novamente.')
+    } finally {
+      setPausePending(false)
+    }
+  }, [session, loading, pausePending, markActivity, refreshState])
+
   const giveUp = useCallback(async () => {
     if (!session || session.status !== 'active' || loading) return
 
@@ -303,5 +347,8 @@ export function useGame() {
     guess,
     giveUp,
     goHome,
+    togglePause,
+    pausePending,
+    pauseError,
   }
 }
