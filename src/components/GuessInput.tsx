@@ -117,9 +117,9 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
               inputMode="text"
               enterKeyHint="go"
               autoComplete="off"
-              autoCorrect="off"
+              autoCorrect="on"
               autoCapitalize="none"
-              spellCheck={false}
+              spellCheck
               placeholder={paused ? 'Partida pausada' : 'Digite uma palavra'}
               disabled={disabled || paused}
               aria-label="Digite uma palavra da música"
