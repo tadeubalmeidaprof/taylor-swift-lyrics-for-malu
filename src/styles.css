@@ -1039,3 +1039,162 @@ button {
     transition-duration: .01ms !important;
   }
 }
+
+/* Controls: pause and clear the current guess */
+
+.game-time-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pause-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 80px;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255,255,255,.08);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+
+.pause-button span {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.pause-button-resume {
+  color: #1e1827;
+  border-color: #eed6ff;
+  background: #e5d8f2;
+}
+
+.pause-button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.pause-error {
+  padding: 0 14px 9px;
+  color: #ffd3da;
+  font-size: 11px;
+  text-align: right;
+}
+
+.guess-form {
+  position: relative;
+}
+
+.guess-form input {
+  padding-right: 52px;
+}
+
+.clear-guess-button {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  color: #66616d;
+  background: transparent;
+  font-size: 27px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.clear-guess-button:active {
+  color: #ffffff;
+  background: #655b70;
+}
+
+@media (max-width: 699px) {
+  /* Estabiliza o Safari: a página externa nunca rola durante a partida.
+     A altura acompanha o visualViewport quando o teclado aparece. */
+  .game-screen {
+    position: fixed;
+    top: var(--game-viewport-top, 0px);
+    right: 0;
+    left: 0;
+    width: 100%;
+    height: var(--game-viewport-height, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .game-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .game-header {
+    position: relative;
+    top: auto;
+    z-index: 3;
+    order: 0;
+    flex: 0 0 auto;
+  }
+
+  .lyrics-panel {
+    order: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .guess-area,
+  .end-bar {
+    position: relative;
+    top: auto;
+    z-index: 4;
+    order: 2;
+    flex: 0 0 auto;
+    border-top: 1px solid #dddde2;
+    border-bottom: 0;
+  }
+
+  .guess-area {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .end-bar {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 359px) {
+  .game-time-actions { gap: 6px; }
+  .pause-button {
+    min-width: 72px;
+    padding: 0 6px;
+    font-size: 8px;
+  }
+  .score strong { font-size: 22px; }
+  .timer { font-size: 21px; }
+}
