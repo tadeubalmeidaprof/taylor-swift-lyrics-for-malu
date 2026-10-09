@@ -114,7 +114,7 @@ export function LyricsGrid({
             const word = revealed.get(position)
             const chorus = isInChorus(position, chorusRanges)
             const startsChorus = chorusStarts.has(position)
-            const missed = status === 'expired' && Boolean(word) && !foundPositions.has(position)
+            const missed = (status === 'expired' || status === 'abandoned') && Boolean(word) && !foundPositions.has(position)
 
             return (
               <div key={position} className="lyric-stack-item">
