@@ -5,7 +5,7 @@ import './styles.css'
 
 // Atualize esta versão apenas quando for necessário invalidar dados antigos.
 const STORAGE_RESET_KEY = 'swifter-lyrics-storage-reset'
-const STORAGE_RESET_VERSION = '2026-10-08-02'
+const STORAGE_RESET_VERSION = '2026-10-09-03'
 
 function resetOldBrowserData() {
   try {
