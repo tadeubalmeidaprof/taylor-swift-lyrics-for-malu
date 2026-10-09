@@ -4,6 +4,8 @@ type EndBarProps = {
   status: GameStatus
   title?: string | null
   album?: string | null
+  onReplay: () => void
+  replayError?: string
   onNext: () => void
   onHome: () => void
   loading?: boolean
@@ -19,6 +21,8 @@ export function EndBar({
   status,
   title,
   album,
+  onReplay,
+  replayError,
   onNext,
   onHome,
   loading,
@@ -43,6 +47,11 @@ export function EndBar({
           INÍCIO
         </button>
 
+        {(status === 'expired' || status === 'abandoned') && (
+          <button className="end-replay-button" type="button" onClick={onReplay} disabled={loading}>
+            REPETIR
+          </button>
+        )}
         <button
           className="end-next-button"
           type="button"
@@ -52,6 +61,7 @@ export function EndBar({
           {loading ? 'AGUARDE' : 'PRÓXIMA'}
         </button>
       </div>
+      {replayError && <p className="end-replay-error" role="alert">{replayError}</p>}
     </div>
   )
 }
