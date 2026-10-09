@@ -56,3 +56,12 @@ export async function setGamePaused(sessionToken: string, paused: boolean) {
   if (error) throw error
   return firstRow<SetGamePausedResponse>(data as SetGamePausedResponse[])
 }
+
+export async function replayGame(sessionToken: string) {
+  const { data, error } = await supabase.rpc('replay_game', {
+    p_session_token: sessionToken,
+  })
+
+  if (error) throw error
+  return firstRow<StartGameResponse>(data as StartGameResponse[])
+}
