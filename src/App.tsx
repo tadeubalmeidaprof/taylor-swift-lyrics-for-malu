@@ -25,6 +25,8 @@ export default function App() {
     start,
     guess,
     giveUp,
+    replay,
+    replayError,
     goHome,
     togglePause,
     pausePending,
@@ -53,6 +55,7 @@ export default function App() {
   return (
     <main className="game-screen">
       <div className="game-shell">
+        <div className="game-top-controls">
         <GameHeader
           found={session.foundWords}
           total={session.totalWords}
@@ -77,11 +80,15 @@ export default function App() {
             status={session.status}
             title={session.finalTitle}
             album={session.finalAlbum}
+            onReplay={replay}
+            replayError={replayError}
             onNext={start}
             onHome={goHome}
             loading={loading}
           />
         )}
+
+        </div>
 
         <section className="lyrics-panel">
           <LyricsGrid
