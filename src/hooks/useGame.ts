@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getGameState, giveUpGame, setGamePaused, startRandomGame, submitLiveGuess } from '../services/gameApi'
+import { getGameState, giveUpGame, replayGame, setGamePaused, startRandomGame, submitLiveGuess } from '../services/gameApi'
 import type {
   GameSession,
   GetGameStateResponse,
@@ -28,6 +28,7 @@ export function useGame() {
   const [pausePending, setPausePending] = useState(false)
   const [pauseError, setPauseError] = useState('')
   const [startError, setStartError] = useState('')
+  const [replayError, setReplayError] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const activityWriteRef = useRef(0)
 
@@ -47,6 +48,7 @@ export function useGame() {
     setPauseError('')
     setRemainingSeconds(0)
     setStartError('')
+    setReplayError('')
   }, [])
 
   const isInactive = useCallback(() => {
@@ -233,6 +235,43 @@ export function useGame() {
     }
   }, [clientId, loading])
 
+  const replay = useCallback(async () => {
+    if (!session || !['expired', 'abandoned'].includes(session.status) || loading) return
+
+    setLoading(true)
+    setReplayError('')
+    try {
+      const data = await replayGame(session.sessionToken)
+      const next: GameSession = {
+        sessionToken: data.session_token,
+        clientId: data.client_id,
+        totalWords: data.total_words,
+        timeLimitSeconds: data.time_limit_seconds,
+        expiresAt: data.expires_at,
+        paused: false,
+        chorusRanges: data.chorus_ranges || [],
+        foundWords: 0,
+        foundPositions: new Set(),
+        revealed: new Map(),
+        wrongGuesses: [],
+        status: 'active',
+      }
+
+      localStorage.setItem(SESSION_KEY, data.session_token)
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(nowTimestamp()))
+      activityWriteRef.current = nowTimestamp()
+      setSession(next)
+      setRemainingSeconds(data.time_limit_seconds)
+      setPauseError('')
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    } catch (error) {
+      console.error('Não foi possível repetir a música:', error)
+      setReplayError('Não foi possível repetir a música. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }, [session, loading])
+
   const guess = useCallback(async (value: string): Promise<GuessOutcome> => {
     if (!session || session.status !== 'active' || session.paused) return 'miss'
 
@@ -346,6 +385,8 @@ export function useGame() {
     start,
     guess,
     giveUp,
+    replay,
+    replayError,
     goHome,
     togglePause,
     pausePending,
