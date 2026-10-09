@@ -1189,3 +1189,77 @@ button {
   .score strong { font-size: 22px; }
   .timer { font-size: 21px; }
 }
+
+/* Mantém placar e entrada unidos enquanto a letra percorre a página.
+   Sem visualViewport, scrollTo forçado ou reposicionamento do teclado. */
+.game-top-controls {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  isolation: isolate;
+}
+
+.game-top-controls .game-header,
+.game-top-controls .guess-area,
+.game-top-controls .end-bar {
+  position: static;
+  top: auto;
+}
+
+.end-replay-button {
+  border: 1px solid #b9a7d0;
+  color: #403158;
+  background: #f0e9f8;
+}
+
+.end-replay-error {
+  position: absolute;
+  top: 100%;
+  right: 6px;
+  left: 6px;
+  margin: 0;
+  padding: 6px;
+  border-radius: 0 0 8px 8px;
+  background: #fff0f0;
+  color: #a22f3c;
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 699px) {
+  .game-shell {
+    overflow: visible;
+  }
+
+  .game-top-controls {
+    top: 0;
+  }
+
+  .end-bar {
+    position: relative;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .end-actions {
+    gap: 5px;
+  }
+
+  .end-actions button {
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 9px;
+  }
+
+  .end-replay-error {
+    position: static;
+    flex: 1 0 100%;
+  }
+}
+
+@media (max-width: 359px) {
+  .end-actions button {
+    padding: 0 7px;
+    font-size: 8px;
+  }
+}
