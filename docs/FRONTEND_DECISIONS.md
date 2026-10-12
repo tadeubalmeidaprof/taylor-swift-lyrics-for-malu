@@ -21,6 +21,14 @@ A partida é propositalmente mais simples:
 - blocos ocultos com largura uniforme;
 - refrões destacados apenas por tratamento visual sutil.
 
+### Barra durante a rolagem
+O placar e a barra de digitação ficam juntos em uma camada fixa no topo.
+`FloatingGameControls` reserva a altura real dos controles com `ResizeObserver`,
+para que o início da letra não fique coberto, inclusive quando há mensagens de erro.
+No celular, acompanha o deslocamento do `visualViewport` provocado pelo teclado;
+durante o zoom, mantém o comportamento nativo do navegador. A letra continua
+rolando na página, sem bloquear o `body`, forçar `scrollTo` ou recriar o input.
+
 ## Performance
 
 Não foi usada biblioteca de animação. As transições são feitas com CSS usando principalmente:

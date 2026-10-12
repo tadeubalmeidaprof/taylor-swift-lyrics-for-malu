@@ -342,9 +342,6 @@ button {
 }
 
 .game-header {
-  position: sticky;
-  z-index: 40;
-  top: 0;
   padding-top: env(safe-area-inset-top);
   color: #ffffff;
   background: #050505;
@@ -403,9 +400,6 @@ button {
 
 .guess-area,
 .end-bar {
-  position: sticky;
-  z-index: 35;
-  top: calc(72px + env(safe-area-inset-top));
   background: #f3f3f5;
   border-bottom: 1px solid #dddde2;
 }
@@ -904,11 +898,6 @@ button {
     font-size: 22px;
   }
 
-  .guess-area,
-  .end-bar {
-    top: calc(68px + env(safe-area-inset-top));
-  }
-
   .guess-area {
     padding: 10px 8px;
   }
@@ -1124,7 +1113,7 @@ button {
 }
 
 @media (max-width: 699px) {
-  /* Teste A/B: rolagem natural, sem bloquear o viewport do Safari. */
+  /* A letra continua usando a rolagem natural da página. */
   .game-screen {
     position: static;
     height: auto;
@@ -1140,17 +1129,8 @@ button {
     overflow: visible;
   }
 
-  .game-header {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-  }
-
   .guess-area,
   .end-bar {
-    position: sticky;
-    top: calc(66px + env(safe-area-inset-top));
-    z-index: 35;
     border-top: 0;
     border-bottom: 1px solid #dddde2;
   }
@@ -1190,20 +1170,29 @@ button {
   .timer { font-size: 21px; }
 }
 
-/* Mantém placar e entrada unidos enquanto a letra percorre a página.
-   Sem visualViewport, scrollTo forçado ou reposicionamento do teclado. */
+/* Placar e digitação flutuam juntos; o espaço medido evita cobrir a letra. */
 .game-top-controls {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  top: calc(var(--controls-viewport-top, 0px) + var(--controls-top-gap, 0px));
+  right: 0;
+  left: 0;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
   z-index: 50;
   isolation: isolate;
+  box-shadow: 0 4px 12px rgba(30, 22, 38, .12);
 }
 
-.game-top-controls .game-header,
-.game-top-controls .guess-area,
 .game-top-controls .end-bar {
-  position: static;
-  top: auto;
+  position: relative;
+}
+
+@media (min-width: 700px) {
+  .game-top-controls {
+    --controls-top-gap: 22px;
+    border-radius: 22px 22px 0 0;
+  }
 }
 
 .end-replay-button {
@@ -1229,10 +1218,6 @@ button {
 @media (max-width: 699px) {
   .game-shell {
     overflow: visible;
-  }
-
-  .game-top-controls {
-    top: 0;
   }
 
   .end-bar {
