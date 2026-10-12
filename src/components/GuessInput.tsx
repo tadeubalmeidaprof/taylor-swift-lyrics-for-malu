@@ -20,8 +20,8 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
   const versionRef = useRef(0)
   const feedbackTimerRef = useRef<number | null>(null)
 
-  // Sem foco automático no iPhone: a barra permanece ancorada embaixo
-  // e a rolagem acontece exclusivamente dentro do painel da letra.
+  // No celular, abre o teclado apenas ao tocar no campo. No computador,
+  // dá foco sem mover a posição da letra que a pessoa está lendo.
   useEffect(() => {
     if (!disabled && !paused && window.matchMedia('(pointer: fine)').matches) {
       inputRef.current?.focus({ preventScroll: true })

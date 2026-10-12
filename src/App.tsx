@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { EndBar } from './components/EndBar'
+import { FloatingGameControls } from './components/FloatingGameControls'
 import { GameHeader } from './components/GameHeader'
 import { GiveUpDialog } from './components/GiveUpDialog'
 import { GuessInput } from './components/GuessInput'
@@ -55,40 +56,39 @@ export default function App() {
   return (
     <main className="game-screen">
       <div className="game-shell">
-        <div className="game-top-controls">
-        <GameHeader
-          found={session.foundWords}
-          total={session.totalWords}
-          remainingSeconds={remainingSeconds}
-          progress={progress}
-          active={session.status === 'active'}
-          paused={session.paused}
-          pausePending={pausePending}
-          pauseError={pauseError}
-          onTogglePause={() => void togglePause()}
-        />
-
-        {active ? (
-          <GuessInput
-            disabled={loading || pausePending}
+        <FloatingGameControls>
+          <GameHeader
+            found={session.foundWords}
+            total={session.totalWords}
+            remainingSeconds={remainingSeconds}
+            progress={progress}
+            active={active}
             paused={session.paused}
-            onGuess={guess}
-            onGiveUp={() => setShowGiveUp(true)}
+            pausePending={pausePending}
+            pauseError={pauseError}
+            onTogglePause={() => void togglePause()}
           />
-        ) : (
-          <EndBar
-            status={session.status}
-            title={session.finalTitle}
-            album={session.finalAlbum}
-            onReplay={replay}
-            replayError={replayError}
-            onNext={start}
-            onHome={goHome}
-            loading={loading}
-          />
-        )}
 
-        </div>
+          {active ? (
+            <GuessInput
+              disabled={loading || pausePending}
+              paused={session.paused}
+              onGuess={guess}
+              onGiveUp={() => setShowGiveUp(true)}
+            />
+          ) : (
+            <EndBar
+              status={session.status}
+              title={session.finalTitle}
+              album={session.finalAlbum}
+              onReplay={replay}
+              replayError={replayError}
+              onNext={start}
+              onHome={goHome}
+              loading={loading}
+            />
+          )}
+        </FloatingGameControls>
 
         <section className="lyrics-panel">
           <LyricsGrid
