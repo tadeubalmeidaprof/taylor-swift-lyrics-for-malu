@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase'
+import type { OfflineSong } from '../offline/offlinePack'
 import type {
+  ChorusRange,
   GetGameStateResponse,
   StartGameResponse,
   SubmitGuessResponse,
@@ -11,13 +13,47 @@ function firstRow<T>(data: T[] | T | null): T {
   return Array.isArray(data) ? data[0] : data
 }
 
+// Sem sinal, o iPhone pode demorar muito para desistir de uma requisição.
+// Depois deste prazo, o jogo passa a usar as músicas salvas no aparelho.
+const START_TIMEOUT_MS = 7000
+
 export async function startRandomGame(clientId?: string) {
-  const { data, error } = await supabase.rpc('start_random_game', {
-    p_client_id: clientId || null,
-  })
+  const { data, error } = await supabase
+    .rpc('start_random_game', { p_client_id: clientId || null })
+    .abortSignal(AbortSignal.timeout(START_TIMEOUT_MS))
 
   if (error) throw error
   return firstRow<StartGameResponse>(data as StartGameResponse[])
+}
+
+type OfflinePackRow = {
+  song_id: number
+  title: string
+  album: string
+  display_tokens: string[]
+  normalized_tokens: string[]
+  word_count: number
+  time_limit_seconds: number
+  chorus_ranges: ChorusRange[] | null
+}
+
+export async function fetchOfflinePack(clientId: string, count: number): Promise<OfflineSong[]> {
+  const { data, error } = await supabase
+    .rpc('get_offline_pack', { p_client_id: clientId, p_count: count })
+    .abortSignal(AbortSignal.timeout(20000))
+
+  if (error) throw error
+
+  return ((data || []) as OfflinePackRow[]).map((row) => ({
+    songId: Number(row.song_id),
+    title: row.title,
+    album: row.album,
+    displayTokens: row.display_tokens,
+    normalizedTokens: row.normalized_tokens,
+    wordCount: row.word_count,
+    timeLimitSeconds: row.time_limit_seconds,
+    chorusRanges: row.chorus_ranges || [],
+  }))
 }
 
 export async function submitLiveGuess(sessionToken: string, guess: string) {

@@ -1,5 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getGameState, giveUpGame, replayGame, setGamePaused, startRandomGame, submitLiveGuess } from '../services/gameApi'
+import {
+  fetchOfflinePack,
+  getGameState,
+  giveUpGame,
+  replayGame,
+  setGamePaused,
+  startRandomGame,
+  submitLiveGuess,
+} from '../services/gameApi'
+import {
+  clearLocalGame,
+  createLocalGame,
+  expireIfNeeded,
+  loadLocalGame,
+  localGameToSession,
+  localGiveUp,
+  localGuess,
+  localRemainingSeconds,
+  localSetPaused,
+  saveLocalGame,
+  type LocalGame,
+} from '../offline/localGame'
+import {
+  loadOfflinePack,
+  markOfflineSongPlayed,
+  OFFLINE_PACK_SIZE,
+  pickOfflineSong,
+  saveOfflinePack,
+  type OfflineSong,
+} from '../offline/offlinePack'
 import type {
   GameSession,
   GetGameStateResponse,
@@ -12,6 +41,7 @@ const SESSION_KEY = 'swifter-lyrics-active-session'
 const LAST_ACTIVITY_KEY = 'swifter-lyrics-last-activity'
 const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000
 const INACTIVITY_CHECK_MS = 30 * 1000
+const PACK_REFRESH_MIN_INTERVAL_MS = 60 * 1000
 
 function toMap(words: RevealedWord[]) {
   return new Map(words.map((item) => [item.position, item.word]))
@@ -30,7 +60,10 @@ export function useGame() {
   const [startError, setStartError] = useState('')
   const [replayError, setReplayError] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
+  const [offlineSongCount, setOfflineSongCount] = useState(() => loadOfflinePack()?.songs.length ?? 0)
   const activityWriteRef = useRef(0)
+  const localGameRef = useRef<LocalGame | null>(null)
+  const lastPackRefreshRef = useRef(0)
 
   const markActivity = useCallback(() => {
     const now = nowTimestamp()
@@ -41,9 +74,62 @@ export function useGame() {
     localStorage.setItem(LAST_ACTIVITY_KEY, String(now))
   }, [])
 
+  // Atualiza a tela a partir de uma partida offline. Partidas encerradas
+  // saem do armazenamento, como acontece com as partidas online.
+  const applyLocalGame = useCallback((game: LocalGame) => {
+    localGameRef.current = game
+
+    if (game.status === 'active') saveLocalGame(game)
+    else clearLocalGame()
+
+    setSession(localGameToSession(game, clientId))
+    setRemainingSeconds(localRemainingSeconds(game))
+  }, [clientId])
+
+  const startLocalGame = useCallback((song: OfflineSong) => {
+    const game = createLocalGame(song)
+    markOfflineSongPlayed(song.songId)
+    localStorage.removeItem(SESSION_KEY)
+    localStorage.setItem(LAST_ACTIVITY_KEY, String(nowTimestamp()))
+    activityWriteRef.current = nowTimestamp()
+    applyLocalGame(game)
+    setPauseError('')
+    setStartError('')
+    setReplayError('')
+  }, [applyLocalGame])
+
+  // Com internet, baixa um pacote novo de músicas para jogar offline.
+  const refreshOfflinePack = useCallback(async () => {
+    if (navigator.onLine === false) return
+
+    const now = nowTimestamp()
+    if (now - lastPackRefreshRef.current < PACK_REFRESH_MIN_INTERVAL_MS) return
+    lastPackRefreshRef.current = now
+
+    try {
+      const songs = await fetchOfflinePack(clientId, OFFLINE_PACK_SIZE)
+      const pack = saveOfflinePack(songs)
+      if (pack) setOfflineSongCount(pack.songs.length)
+    } catch (error) {
+      // Sem conexão estável: mantém o pacote que já estava salvo.
+      lastPackRefreshRef.current = 0
+      console.warn('Não foi possível atualizar as músicas offline:', error)
+    }
+  }, [clientId])
+
+  useEffect(() => {
+    void refreshOfflinePack()
+
+    const handleOnline = () => void refreshOfflinePack()
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [refreshOfflinePack])
+
   const clearLocalSession = useCallback(() => {
     localStorage.removeItem(SESSION_KEY)
     localStorage.removeItem(LAST_ACTIVITY_KEY)
+    clearLocalGame()
+    localGameRef.current = null
     setSession(null)
     setPauseError('')
     setRemainingSeconds(0)
@@ -89,6 +175,19 @@ export function useGame() {
   }, [])
 
   useEffect(() => {
+    const savedLocal = loadLocalGame()
+
+    if (savedLocal) {
+      const game = expireIfNeeded(savedLocal)
+
+      if (isInactive() && game.pausedAt === null) {
+        clearLocalSession()
+      } else {
+        applyLocalGame(game)
+      }
+      return
+    }
+
     const saved = localStorage.getItem(SESSION_KEY)
     if (!saved) return
 
@@ -128,7 +227,7 @@ export function useGame() {
       })
       .catch(() => clearLocalSession())
       .finally(() => setLoading(false))
-  }, [clientId, clearLocalSession, isInactive])
+  }, [clientId, clearLocalSession, isInactive, applyLocalGame])
 
   useEffect(() => {
     if (!session) return
@@ -184,6 +283,13 @@ export function useGame() {
 
       if (remaining === 0 && !expiryRequested) {
         expiryRequested = true
+
+        if (session.offline) {
+          const game = localGameRef.current
+          if (game) applyLocalGame(expireIfNeeded(game))
+          return
+        }
+
         refreshState(session.sessionToken)
           .then(() => localStorage.removeItem(SESSION_KEY))
           .catch(() => {
@@ -195,13 +301,28 @@ export function useGame() {
     tick()
     const id = window.setInterval(tick, 1000)
     return () => window.clearInterval(id)
-  }, [session?.sessionToken, session?.expiresAt, session?.status, session?.paused, refreshState])
+  }, [session?.sessionToken, session?.expiresAt, session?.status, session?.paused, session?.offline, refreshState, applyLocalGame])
 
   const start = useCallback(async () => {
     if (loading) return
 
     setLoading(true)
     setStartError('')
+
+    const lastOfflineSongId = localGameRef.current?.song.songId
+
+    // Sem rede nenhuma, nem tenta o servidor: vai direto para o pacote.
+    if (navigator.onLine === false) {
+      const song = pickOfflineSong(lastOfflineSongId)
+      setLoading(false)
+
+      if (song) {
+        startLocalGame(song)
+      } else {
+        setStartError('Sem internet e sem músicas salvas. Abra o jogo com internet uma vez para baixar as músicas.')
+      }
+      return
+    }
 
     try {
       const data = await startRandomGame(clientId)
@@ -221,22 +342,41 @@ export function useGame() {
         status: 'active',
       }
 
+      clearLocalGame()
+      localGameRef.current = null
       localStorage.setItem(SESSION_KEY, data.session_token)
       localStorage.setItem(LAST_ACTIVITY_KEY, String(nowTimestamp()))
       activityWriteRef.current = nowTimestamp()
       setSession(next)
       setRemainingSeconds(data.time_limit_seconds)
       setPauseError('')
+      void refreshOfflinePack()
     } catch (error) {
       console.error('Falha ao iniciar partida:', error)
-      setStartError('Não consegui iniciar a partida. Toque em PLAY para tentar novamente.')
+
+      // Sinal fraco ou ausente: joga uma das músicas salvas no aparelho.
+      const song = pickOfflineSong(lastOfflineSongId)
+      if (song) {
+        startLocalGame(song)
+      } else {
+        setStartError('Não consegui iniciar a partida. Toque em PLAY para tentar novamente.')
+      }
     } finally {
       setLoading(false)
     }
-  }, [clientId, loading])
+  }, [clientId, loading, startLocalGame, refreshOfflinePack])
 
   const replay = useCallback(async () => {
     if (!session || !['expired', 'abandoned'].includes(session.status) || loading) return
+
+    if (session.offline) {
+      const song = localGameRef.current?.song
+      if (song) {
+        startLocalGame(song)
+        window.scrollTo({ top: 0, behavior: 'auto' })
+      }
+      return
+    }
 
     setLoading(true)
     setReplayError('')
@@ -280,6 +420,15 @@ export function useGame() {
 
     markActivity()
 
+    if (session.offline) {
+      const game = localGameRef.current
+      if (!game) return 'error'
+
+      const result = localGuess(game, cleaned)
+      if (result.game !== game) applyLocalGame(result.game)
+      return result.outcome
+    }
+
     try {
       const data = await submitLiveGuess(session.sessionToken, cleaned)
 
@@ -317,11 +466,20 @@ export function useGame() {
       console.error('Falha ao verificar palavra:', error)
       return 'error'
     }
-  }, [session, refreshState, markActivity])
+  }, [session, refreshState, markActivity, applyLocalGame])
 
   const togglePause = useCallback(async () => {
     if (!session || session.status !== 'active' || loading || pausePending) return
     const token = session.sessionToken
+
+    if (session.offline) {
+      const game = localGameRef.current
+      if (game) {
+        applyLocalGame(localSetPaused(game, !session.paused))
+        markActivity()
+      }
+      return
+    }
 
     setPausePending(true)
     setPauseError('')
@@ -349,12 +507,19 @@ export function useGame() {
     } finally {
       setPausePending(false)
     }
-  }, [session, loading, pausePending, markActivity, refreshState])
+  }, [session, loading, pausePending, markActivity, refreshState, applyLocalGame])
 
   const giveUp = useCallback(async () => {
     if (!session || session.status !== 'active' || loading) return
 
     markActivity()
+
+    if (session.offline) {
+      const game = localGameRef.current
+      if (game) applyLocalGame(localGiveUp(game))
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -364,7 +529,7 @@ export function useGame() {
     } finally {
       setLoading(false)
     }
-  }, [session, loading, refreshState, markActivity])
+  }, [session, loading, refreshState, markActivity, applyLocalGame])
 
   const goHome = useCallback(() => {
     clearLocalSession()
@@ -391,5 +556,6 @@ export function useGame() {
     togglePause,
     pausePending,
     pauseError,
+    offlineSongCount,
   }
 }

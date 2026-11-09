@@ -4,6 +4,7 @@ type GameHeaderProps = {
   remainingSeconds: number
   progress: number
   active: boolean
+  offline?: boolean
   paused: boolean
   pausePending?: boolean
   pauseError?: string
@@ -22,6 +23,7 @@ export function GameHeader({
   remainingSeconds,
   progress,
   active,
+  offline = false,
   paused,
   pausePending,
   pauseError,
@@ -35,6 +37,11 @@ export function GameHeader({
         <div className="score" aria-label={found + ' de ' + total + ' palavras'}>
           <strong>{found}</strong>
           <span>/ {total}</span>
+          {offline && (
+            <em className="offline-badge" title="Jogando com uma música salva no aparelho">
+              offline
+            </em>
+          )}
         </div>
 
         <div className="game-time-actions">

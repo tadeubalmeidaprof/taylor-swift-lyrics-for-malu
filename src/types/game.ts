@@ -26,6 +26,8 @@ export type GameSession = {
   status: GameStatus
   finalTitle?: string | null
   finalAlbum?: string | null
+  // Partida jogada no aparelho, com uma música do pacote offline.
+  offline?: boolean
 }
 
 export type StartGameResponse = {

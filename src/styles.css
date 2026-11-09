@@ -1248,3 +1248,27 @@ button {
     font-size: 8px;
   }
 }
+
+/* Modo offline */
+.intro-offline {
+  margin: 4px auto 0;
+  max-width: 280px;
+  color: rgba(255, 255, 255, .42);
+  font-size: 11px;
+  letter-spacing: .02em;
+  line-height: 1.45;
+}
+
+.offline-badge {
+  align-self: center;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, .62);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}

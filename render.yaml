@@ -12,6 +12,13 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
+      # O service worker precisa ser revalidado para o modo offline atualizar.
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache
       # O Vite usa hashes nos nomes dos arquivos gerados.
       - path: /assets/*
         name: Cache-Control

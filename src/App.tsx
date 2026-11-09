@@ -32,6 +32,7 @@ export default function App() {
     togglePause,
     pausePending,
     pauseError,
+    offlineSongCount,
   } = useGame()
 
   useEffect(() => {
@@ -43,7 +44,14 @@ export default function App() {
       return <LoadingScreen />
     }
 
-    return <IntroScreen onPlay={start} loading={false} error={startError} />
+    return (
+      <IntroScreen
+        onPlay={start}
+        loading={false}
+        error={startError}
+        offlineSongCount={offlineSongCount}
+      />
+    )
   }
 
   const active = session.status === 'active'
@@ -63,6 +71,7 @@ export default function App() {
             remainingSeconds={remainingSeconds}
             progress={progress}
             active={active}
+            offline={Boolean(session.offline)}
             paused={session.paused}
             pausePending={pausePending}
             pauseError={pauseError}
