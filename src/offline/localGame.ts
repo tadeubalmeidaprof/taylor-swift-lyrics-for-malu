@@ -156,3 +156,64 @@ export function loadLocalGame(): LocalGame | null {
 export function clearLocalGame() {
   localStorage.removeItem(LOCAL_GAME_KEY)
 }
+
+// ---------------------------------------------------------------------------
+// Cópia da partida online, para continuar no aparelho se a internet cair.
+
+const ONLINE_COPY_KEY = 'swifter-lyrics-online-copy'
+
+export type OnlineCopy = {
+  sessionToken: string
+  song: OfflineSong
+  foundPositions: number[]
+  expiresAt: number
+  paused: boolean
+  // Enquanto pausada, o tempo restante fica congelado neste valor.
+  pausedRemainingSeconds: number
+  status: GameStatus
+}
+
+export function saveOnlineCopy(copy: OnlineCopy) {
+  try {
+    localStorage.setItem(ONLINE_COPY_KEY, JSON.stringify(copy))
+  } catch (error) {
+    console.warn('Não foi possível guardar a cópia da partida:', error)
+  }
+}
+
+export function loadOnlineCopy(sessionToken?: string): OnlineCopy | null {
+  try {
+    const raw = localStorage.getItem(ONLINE_COPY_KEY)
+    if (!raw) return null
+    const copy = JSON.parse(raw) as OnlineCopy
+    if (!copy?.song || !Array.isArray(copy.song.normalizedTokens)) return null
+    if (sessionToken && copy.sessionToken !== sessionToken) return null
+    return copy
+  } catch {
+    return null
+  }
+}
+
+export function clearOnlineCopy() {
+  localStorage.removeItem(ONLINE_COPY_KEY)
+}
+
+// Transforma a partida online em uma partida local, mantendo palavras
+// encontradas, tempo restante e pausa.
+export function localGameFromOnlineCopy(copy: OnlineCopy, now = Date.now()): LocalGame {
+  const guessedWords = Array.from(new Set(
+    copy.foundPositions
+      .map((position) => copy.song.normalizedTokens[position - 1])
+      .filter(Boolean),
+  ))
+
+  return {
+    id: OFFLINE_TOKEN_PREFIX + crypto.randomUUID(),
+    song: copy.song,
+    expiresAt: copy.paused ? now + copy.pausedRemainingSeconds * 1000 : copy.expiresAt,
+    pausedAt: copy.paused ? now : null,
+    guessedWords,
+    foundPositions: [...copy.foundPositions].sort((a, b) => a - b),
+    status: copy.status,
+  }
+}

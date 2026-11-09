@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   fetchOfflinePack,
+  fetchSessionSong,
   getGameState,
+  isConnectionError,
   giveUpGame,
   replayGame,
   setGamePaused,
@@ -10,10 +12,14 @@ import {
 } from '../services/gameApi'
 import {
   clearLocalGame,
+  clearOnlineCopy,
   createLocalGame,
   expireIfNeeded,
   loadLocalGame,
+  loadOnlineCopy,
+  localGameFromOnlineCopy,
   localGameToSession,
+  saveOnlineCopy,
   localGiveUp,
   localGuess,
   localRemainingSeconds,
@@ -64,6 +70,15 @@ export function useGame() {
   const activityWriteRef = useRef(0)
   const localGameRef = useRef<LocalGame | null>(null)
   const lastPackRefreshRef = useRef(0)
+  // Música da partida online atual, guardada para continuar sem internet.
+  const sessionSongRef = useRef<{ token: string; song: OfflineSong } | null>(null)
+  const sessionSongPendingRef = useRef<string | null>(null)
+  const remainingRef = useRef(0)
+  const [sessionSongVersion, setSessionSongVersion] = useState(0)
+
+  useEffect(() => {
+    remainingRef.current = remainingSeconds
+  }, [remainingSeconds])
 
   const markActivity = useCallback(() => {
     const now = nowTimestamp()
@@ -125,11 +140,59 @@ export function useGame() {
     return () => window.removeEventListener('online', handleOnline)
   }, [refreshOfflinePack])
 
+  const songForSession = useCallback((token: string) => {
+    if (sessionSongRef.current?.token === token) return sessionSongRef.current.song
+    return loadOnlineCopy(token)?.song ?? null
+  }, [])
+
+  // Assim que a partida online começa, baixa a música dela para o aparelho.
+  const cacheSessionSong = useCallback(async (token: string) => {
+    if (sessionSongRef.current?.token === token || sessionSongPendingRef.current === token) return
+    sessionSongPendingRef.current = token
+
+    try {
+      const song = await fetchSessionSong(token)
+      if (song) {
+        sessionSongRef.current = { token, song }
+        setSessionSongVersion((version) => version + 1)
+      }
+    } catch (error) {
+      console.warn('Não foi possível guardar a música da partida:', error)
+    } finally {
+      if (sessionSongPendingRef.current === token) sessionSongPendingRef.current = null
+    }
+  }, [])
+
+  // A internet caiu no meio de uma partida online: continua a mesma partida
+  // no aparelho, com as palavras encontradas e o tempo restante.
+  const continueOffline = useCallback((current: GameSession): LocalGame | null => {
+    const song = songForSession(current.sessionToken)
+    if (!song) return null
+
+    const game = localGameFromOnlineCopy({
+      sessionToken: current.sessionToken,
+      song,
+      foundPositions: [...current.foundPositions],
+      expiresAt: new Date(current.expiresAt).getTime(),
+      paused: current.paused,
+      pausedRemainingSeconds: remainingRef.current,
+      status: current.status,
+    })
+
+    localStorage.removeItem(SESSION_KEY)
+    clearOnlineCopy()
+    sessionSongRef.current = null
+    applyLocalGame(game)
+    return game
+  }, [songForSession, applyLocalGame])
+
   const clearLocalSession = useCallback(() => {
     localStorage.removeItem(SESSION_KEY)
     localStorage.removeItem(LAST_ACTIVITY_KEY)
     clearLocalGame()
+    clearOnlineCopy()
     localGameRef.current = null
+    sessionSongRef.current = null
     setSession(null)
     setPauseError('')
     setRemainingSeconds(0)
@@ -221,13 +284,49 @@ export function useGame() {
 
         setRemainingSeconds(state.time_remaining_seconds)
 
+        const copy = loadOnlineCopy(saved)
+        if (copy) sessionSongRef.current = { token: saved, song: copy.song }
+        else if (state.status === 'active') void cacheSessionSong(saved)
+
         if (state.status !== 'active') {
           localStorage.removeItem(SESSION_KEY)
         }
       })
-      .catch(() => clearLocalSession())
+      .catch((error) => {
+        // Abriu sem internet no meio de uma partida online: continua no aparelho.
+        const copy = isConnectionError(error) ? loadOnlineCopy(saved) : null
+
+        if (copy && copy.status === 'active' && !(isInactive() && !copy.paused)) {
+          localStorage.removeItem(SESSION_KEY)
+          clearOnlineCopy()
+          applyLocalGame(expireIfNeeded(localGameFromOnlineCopy(copy)))
+          return
+        }
+
+        clearLocalSession()
+      })
       .finally(() => setLoading(false))
-  }, [clientId, clearLocalSession, isInactive, applyLocalGame])
+  }, [clientId, clearLocalSession, isInactive, applyLocalGame, cacheSessionSong])
+
+  // Mantém uma cópia atualizada da partida online no aparelho, para o caso
+  // de o jogo ser reaberto sem internet.
+  useEffect(() => {
+    if (!session || session.offline) return
+    const song = sessionSongRef.current?.token === session.sessionToken
+      ? sessionSongRef.current.song
+      : null
+    if (!song) return
+
+    saveOnlineCopy({
+      sessionToken: session.sessionToken,
+      song,
+      foundPositions: [...session.foundPositions],
+      expiresAt: new Date(session.expiresAt).getTime(),
+      paused: session.paused,
+      pausedRemainingSeconds: remainingRef.current,
+      status: session.status,
+    })
+  }, [session, sessionSongVersion])
 
   useEffect(() => {
     if (!session) return
@@ -292,8 +391,12 @@ export function useGame() {
 
         refreshState(session.sessionToken)
           .then(() => localStorage.removeItem(SESSION_KEY))
-          .catch(() => {
-            expiryRequested = false
+          .catch((error) => {
+            // Sem internet quando o tempo acabou: encerra no aparelho e
+            // revela a letra guardada.
+            const game = isConnectionError(error) ? continueOffline(session) : null
+            if (game) applyLocalGame(expireIfNeeded(game))
+            else expiryRequested = false
           })
       }
     }
@@ -301,7 +404,7 @@ export function useGame() {
     tick()
     const id = window.setInterval(tick, 1000)
     return () => window.clearInterval(id)
-  }, [session?.sessionToken, session?.expiresAt, session?.status, session?.paused, session?.offline, refreshState, applyLocalGame])
+  }, [session?.sessionToken, session?.expiresAt, session?.status, session?.paused, session?.offline, refreshState, applyLocalGame, continueOffline])
 
   const start = useCallback(async () => {
     if (loading) return
@@ -343,13 +446,16 @@ export function useGame() {
       }
 
       clearLocalGame()
+      clearOnlineCopy()
       localGameRef.current = null
+      sessionSongRef.current = null
       localStorage.setItem(SESSION_KEY, data.session_token)
       localStorage.setItem(LAST_ACTIVITY_KEY, String(nowTimestamp()))
       activityWriteRef.current = nowTimestamp()
       setSession(next)
       setRemainingSeconds(data.time_limit_seconds)
       setPauseError('')
+      void cacheSessionSong(data.session_token)
       void refreshOfflinePack()
     } catch (error) {
       console.error('Falha ao iniciar partida:', error)
@@ -364,7 +470,7 @@ export function useGame() {
     } finally {
       setLoading(false)
     }
-  }, [clientId, loading, startLocalGame, refreshOfflinePack])
+  }, [clientId, loading, startLocalGame, refreshOfflinePack, cacheSessionSong])
 
   const replay = useCallback(async () => {
     if (!session || !['expired', 'abandoned'].includes(session.status) || loading) return
@@ -397,20 +503,34 @@ export function useGame() {
         status: 'active',
       }
 
+      const previousSong = songForSession(session.sessionToken)
+      clearOnlineCopy()
+      localGameRef.current = null
+      sessionSongRef.current = previousSong ? { token: data.session_token, song: previousSong } : null
       localStorage.setItem(SESSION_KEY, data.session_token)
       localStorage.setItem(LAST_ACTIVITY_KEY, String(nowTimestamp()))
       activityWriteRef.current = nowTimestamp()
       setSession(next)
       setRemainingSeconds(data.time_limit_seconds)
       setPauseError('')
+      setSessionSongVersion((version) => version + 1)
+      if (!previousSong) void cacheSessionSong(data.session_token)
       window.scrollTo({ top: 0, behavior: 'auto' })
     } catch (error) {
       console.error('Não foi possível repetir a música:', error)
-      setReplayError('Não foi possível repetir a música. Tente novamente.')
+
+      // Sem internet: repete a mesma música no aparelho.
+      const song = isConnectionError(error) ? songForSession(session.sessionToken) : null
+      if (song) {
+        startLocalGame(song)
+        window.scrollTo({ top: 0, behavior: 'auto' })
+      } else {
+        setReplayError('Não foi possível repetir a música. Tente novamente.')
+      }
     } finally {
       setLoading(false)
     }
-  }, [session, loading])
+  }, [session, loading, songForSession, cacheSessionSong, startLocalGame])
 
   const guess = useCallback(async (value: string): Promise<GuessOutcome> => {
     if (!session || session.status !== 'active' || session.paused) return 'miss'
@@ -459,14 +579,27 @@ export function useGame() {
         localStorage.removeItem(SESSION_KEY)
       }
 
+      if (session.status === 'active' && !songForSession(session.sessionToken)) {
+        void cacheSessionSong(session.sessionToken)
+      }
+
       if (data.already_guessed) return 'already'
       if (data.correct) return 'correct'
       return 'miss'
     } catch (error) {
       console.error('Falha ao verificar palavra:', error)
-      return 'error'
+      if (!isConnectionError(error)) return 'error'
+
+      // A internet caiu enquanto ela digitava: segue a mesma música no
+      // aparelho e confere esta palavra localmente.
+      const game = localGameRef.current ?? continueOffline(session)
+      if (!game) return 'error'
+
+      const result = localGuess(game, cleaned)
+      if (result.game !== game) applyLocalGame(result.game)
+      return result.outcome
     }
-  }, [session, refreshState, markActivity, applyLocalGame])
+  }, [session, refreshState, markActivity, applyLocalGame, continueOffline, songForSession, cacheSessionSong])
 
   const togglePause = useCallback(async () => {
     if (!session || session.status !== 'active' || loading || pausePending) return
@@ -503,11 +636,18 @@ export function useGame() {
       }
     } catch (error) {
       console.error('Erro ao pausar ou retomar:', error)
-      setPauseError('Não foi possível mudar a pausa. Tente novamente.')
+
+      const game = isConnectionError(error) ? continueOffline(session) : null
+      if (game) {
+        applyLocalGame(localSetPaused(game, !session.paused))
+        markActivity()
+      } else {
+        setPauseError('Não foi possível mudar a pausa. Tente novamente.')
+      }
     } finally {
       setPausePending(false)
     }
-  }, [session, loading, pausePending, markActivity, refreshState, applyLocalGame])
+  }, [session, loading, pausePending, markActivity, refreshState, applyLocalGame, continueOffline])
 
   const giveUp = useCallback(async () => {
     if (!session || session.status !== 'active' || loading) return
@@ -526,10 +666,16 @@ export function useGame() {
       await giveUpGame(session.sessionToken)
       await refreshState(session.sessionToken)
       localStorage.removeItem(SESSION_KEY)
+    } catch (error) {
+      console.error('Não foi possível desistir:', error)
+
+      // Sem internet: revela a letra guardada no aparelho.
+      const game = isConnectionError(error) ? continueOffline(session) : null
+      if (game) applyLocalGame(localGiveUp(game))
     } finally {
       setLoading(false)
     }
-  }, [session, loading, refreshState, markActivity, applyLocalGame])
+  }, [session, loading, refreshState, markActivity, applyLocalGame, continueOffline])
 
   const goHome = useCallback(() => {
     clearLocalSession()
