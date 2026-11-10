@@ -15,9 +15,15 @@ const SHORT_WORD_DELAY = 900
 const WORD_DELAY = 450
 const FEEDBACK_DURATION = 520
 
+// A palavra conferida é sempre a última digitada. Assim, uma palavra errada
+// seguida de espaço não gruda na próxima ("sky cold").
+function currentWord(rawValue: string) {
+  return rawValue.trim().split(/\s+/).pop() ?? ''
+}
+
 function autoCheckDelay(rawValue: string) {
   if (/\s$/.test(rawValue)) return 0
-  return rawValue.trim().length <= 2 ? SHORT_WORD_DELAY : WORD_DELAY
+  return currentWord(rawValue).length <= 2 ? SHORT_WORD_DELAY : WORD_DELAY
 }
 
 export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputProps) {
@@ -62,7 +68,7 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
 
     showFeedback(outcome)
 
-    if ((outcome === 'correct' || outcome === 'already') && latestValueRef.current.trim() === guess) {
+    if ((outcome === 'correct' || outcome === 'already') && currentWord(latestValueRef.current) === guess) {
       versionRef.current += 1
       latestValueRef.current = ''
       setValue('')
@@ -70,7 +76,7 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
   }
 
   useEffect(() => {
-    const guess = value.trim()
+    const guess = currentWord(value)
     if (!guess || disabled || paused || composing) return
 
     const requestVersion = versionRef.current
@@ -103,7 +109,7 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    const guess = value.trim()
+    const guess = currentWord(value)
     if (!guess || disabled || paused || composing) return
     await checkGuess(guess, versionRef.current)
   }
