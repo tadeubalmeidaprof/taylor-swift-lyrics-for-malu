@@ -8,8 +8,17 @@ type GuessInputProps = {
   onGiveUp: () => void
 }
 
-const AUTO_CHECK_DELAY = 80
+// Espera uma pausa na digitação antes de conferir. Palavras curtas esperam
+// mais, porque costumam ser o começo de outra ("a" de "air", "I" de "in").
+// Espaço ou Enter conferem na hora.
+const SHORT_WORD_DELAY = 900
+const WORD_DELAY = 450
 const FEEDBACK_DURATION = 520
+
+function autoCheckDelay(rawValue: string) {
+  if (/\s$/.test(rawValue)) return 0
+  return rawValue.trim().length <= 2 ? SHORT_WORD_DELAY : WORD_DELAY
+}
 
 export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputProps) {
   const [value, setValue] = useState('')
@@ -67,7 +76,7 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
     const requestVersion = versionRef.current
     const timer = window.setTimeout(() => {
       void checkGuess(guess, requestVersion)
-    }, AUTO_CHECK_DELAY)
+    }, autoCheckDelay(value))
 
     return () => window.clearTimeout(timer)
   }, [value, disabled, paused, composing])
