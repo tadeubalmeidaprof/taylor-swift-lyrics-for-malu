@@ -2,7 +2,7 @@
 // que ele abra sem internet. As músicas offline ficam no localStorage, e as
 // chamadas ao Supabase (outro domínio) nunca passam por aqui.
 
-const CACHE_NAME = 'swifter-lyrics-shell-v1'
+const CACHE_NAME = 'swifter-lyrics-shell-v2'
 const NAVIGATION_TIMEOUT_MS = 3500
 const SHELL_URLS =['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png']
 
