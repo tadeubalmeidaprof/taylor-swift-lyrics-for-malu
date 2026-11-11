@@ -5,6 +5,8 @@ type GuessInputProps = {
   disabled?: boolean
   paused?: boolean
   onGuess: (value: string) => Promise<GuessOutcome>
+  // Espera em ms antes de conferir; null = não conferir sozinho.
+  getDelay?: (word: string) => number | null
   onGiveUp: () => void
 }
 
@@ -26,7 +28,7 @@ function autoCheckDelay(rawValue: string) {
   return currentWord(rawValue).length <= 2 ? SHORT_WORD_DELAY : WORD_DELAY
 }
 
-export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputProps) {
+export function GuessInput({ disabled, paused, onGuess, onGiveUp, getDelay }: GuessInputProps) {
   const [value, setValue] = useState('')
   const [feedback, setFeedback] = useState<GuessOutcome | null>(null)
   const [composing, setComposing] = useState(false)
@@ -80,9 +82,13 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
     if (!guess || disabled || paused || composing) return
 
     const requestVersion = versionRef.current
+    const typedSpace = /\s$/.test(value)
+    const delay = typedSpace ? 0 : getDelay ? getDelay(guess) : autoCheckDelay(value)
+    if (delay === null) return
+
     const timer = window.setTimeout(() => {
       void checkGuess(guess, requestVersion)
-    }, autoCheckDelay(value))
+    }, delay)
 
     return () => window.clearTimeout(timer)
   }, [value, disabled, paused, composing])

@@ -30,6 +30,7 @@ import {
 import {
   loadOfflinePack,
   markOfflineSongPlayed,
+  normalizeWord,
   OFFLINE_PACK_SIZE,
   pickOfflineSong,
   saveOfflinePack,
@@ -682,6 +683,32 @@ export function useGame() {
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [clearLocalSession])
 
+  // Quanto esperar antes de conferir a palavra que está sendo digitada.
+  // Com a letra guardada no aparelho, o jogo sabe se a palavra é o começo de
+  // outra ainda não encontrada ("a" de "air"). Só nesse caso espera; nos
+  // outros, confere na hora. Palavras que não estão na música não são
+  // enviadas automaticamente (espaço ou Enter ainda enviam).
+  const guessDelay = useCallback((rawWord: string): number | null => {
+    const word = normalizeWord(rawWord)
+    if (!word || !session) return null
+
+    const song = session.offline
+      ? localGameRef.current?.song
+      : songForSession(session.sessionToken)
+    if (!song) return word.length <= 2 ? 900 : 450
+
+    const found = new Set(
+      [...session.foundPositions].map((position) => song.normalizedTokens[position - 1]),
+    )
+
+    if (!song.normalizedTokens.includes(word)) return null
+
+    const startsLongerWord = song.normalizedTokens.some(
+      (token) => token.length > word.length && token.startsWith(word) && !found.has(token),
+    )
+    return startsLongerWord ? 700 : 40
+  }, [session, songForSession])
+
   const progress = useMemo(() => {
     if (!session?.totalWords) return 0
     return Math.round((session.foundWords / session.totalWords) * 100)
@@ -703,5 +730,6 @@ export function useGame() {
     pausePending,
     pauseError,
     offlineSongCount,
+    guessDelay,
   }
 }
