@@ -5,30 +5,13 @@ type GuessInputProps = {
   disabled?: boolean
   paused?: boolean
   onGuess: (value: string) => Promise<GuessOutcome>
-  // Espera em ms antes de conferir; null = não conferir sozinho.
-  getDelay?: (word: string) => number | null
   onGiveUp: () => void
 }
 
-// Espera uma pausa na digitação antes de conferir. Palavras curtas esperam
-// mais, porque costumam ser o começo de outra ("a" de "air", "I" de "in").
-// Espaço ou Enter conferem na hora.
-const SHORT_WORD_DELAY = 900
-const WORD_DELAY = 450
+const AUTO_CHECK_DELAY = 80
 const FEEDBACK_DURATION = 520
 
-// A palavra conferida é sempre a última digitada. Assim, uma palavra errada
-// seguida de espaço não gruda na próxima ("sky cold").
-function currentWord(rawValue: string) {
-  return rawValue.trim().split(/\s+/).pop() ?? ''
-}
-
-function autoCheckDelay(rawValue: string) {
-  if (/\s$/.test(rawValue)) return 0
-  return currentWord(rawValue).length <= 2 ? SHORT_WORD_DELAY : WORD_DELAY
-}
-
-export function GuessInput({ disabled, paused, onGuess, onGiveUp, getDelay }: GuessInputProps) {
+export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputProps) {
   const [value, setValue] = useState('')
   const [feedback, setFeedback] = useState<GuessOutcome | null>(null)
   const [composing, setComposing] = useState(false)
@@ -70,7 +53,7 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp, getDelay }: Gu
 
     showFeedback(outcome)
 
-    if ((outcome === 'correct' || outcome === 'already') && currentWord(latestValueRef.current) === guess) {
+    if ((outcome === 'correct' || outcome === 'already') && latestValueRef.current.trim() === guess) {
       versionRef.current += 1
       latestValueRef.current = ''
       setValue('')
@@ -78,17 +61,13 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp, getDelay }: Gu
   }
 
   useEffect(() => {
-    const guess = currentWord(value)
+    const guess = value.trim()
     if (!guess || disabled || paused || composing) return
 
     const requestVersion = versionRef.current
-    const typedSpace = /\s$/.test(value)
-    const delay = typedSpace ? 0 : getDelay ? getDelay(guess) : autoCheckDelay(value)
-    if (delay === null) return
-
     const timer = window.setTimeout(() => {
       void checkGuess(guess, requestVersion)
-    }, delay)
+    }, AUTO_CHECK_DELAY)
 
     return () => window.clearTimeout(timer)
   }, [value, disabled, paused, composing])
@@ -115,7 +94,7 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp, getDelay }: Gu
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    const guess = currentWord(value)
+    const guess = value.trim()
     if (!guess || disabled || paused || composing) return
     await checkGuess(guess, versionRef.current)
   }

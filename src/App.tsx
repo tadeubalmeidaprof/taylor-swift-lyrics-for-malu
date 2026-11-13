@@ -33,7 +33,6 @@ export default function App() {
     pausePending,
     pauseError,
     offlineSongCount,
-    guessDelay,
   } = useGame()
 
   useEffect(() => {
@@ -84,7 +83,6 @@ export default function App() {
               disabled={loading || pausePending}
               paused={session.paused}
               onGuess={guess}
-              getDelay={guessDelay}
               onGiveUp={() => setShowGiveUp(true)}
             />
           ) : (
