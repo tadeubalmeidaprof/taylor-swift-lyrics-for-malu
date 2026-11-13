@@ -1272,3 +1272,20 @@ button {
   letter-spacing: .08em;
   text-transform: uppercase;
 }
+
+/* Palavra que não está na música: tremidinha discreta no campo */
+.guess-form-shake {
+  animation: guess-shake 420ms cubic-bezier(.36, .07, .19, .97);
+}
+
+@keyframes guess-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guess-form-shake { animation: none; }
+}

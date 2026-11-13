@@ -10,6 +10,10 @@ type GuessInputProps = {
 
 const AUTO_CHECK_DELAY = 80
 const FEEDBACK_DURATION = 520
+// Treme o campo quando a palavra não está na música, mas só depois que ela
+// para de digitar, para não tremer a cada letra no meio da palavra.
+const MISS_SHAKE_DELAY = 1000
+const SHAKE_DURATION = 420
 
 export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputProps) {
   const [value, setValue] = useState('')
@@ -19,6 +23,23 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
   const latestValueRef = useRef('')
   const versionRef = useRef(0)
   const feedbackTimerRef = useRef<number | null>(null)
+  const [shaking, setShaking] = useState(false)
+  const missTimerRef = useRef<number | null>(null)
+  const shakeTimerRef = useRef<number | null>(null)
+
+  function cancelMissShake() {
+    if (missTimerRef.current !== null) {
+      window.clearTimeout(missTimerRef.current)
+      missTimerRef.current = null
+    }
+  }
+
+  function shake() {
+    if (shakeTimerRef.current !== null) window.clearTimeout(shakeTimerRef.current)
+    setShaking(false)
+    window.requestAnimationFrame(() => setShaking(true))
+    shakeTimerRef.current = window.setTimeout(() => setShaking(false), SHAKE_DURATION)
+  }
 
   // No celular, abre o teclado apenas ao tocar no campo. No computador,
   // dá foco sem mover a posição da letra que a pessoa está lendo.
@@ -33,6 +54,8 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
       if (feedbackTimerRef.current !== null) {
         window.clearTimeout(feedbackTimerRef.current)
       }
+      if (missTimerRef.current !== null) window.clearTimeout(missTimerRef.current)
+      if (shakeTimerRef.current !== null) window.clearTimeout(shakeTimerRef.current)
     }
   }, [])
 
@@ -47,11 +70,23 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
     }, FEEDBACK_DURATION)
   }
 
-  async function checkGuess(guess: string, requestVersion: number) {
+  async function checkGuess(guess: string, requestVersion: number, submitted = false) {
     const outcome = await onGuess(guess)
     if (requestVersion !== versionRef.current) return
 
     showFeedback(outcome)
+
+    if (outcome === 'miss') {
+      cancelMissShake()
+      if (submitted) {
+        shake()
+      } else {
+        missTimerRef.current = window.setTimeout(() => {
+          missTimerRef.current = null
+          if (requestVersion === versionRef.current) shake()
+        }, MISS_SHAKE_DELAY)
+      }
+    }
 
     if ((outcome === 'correct' || outcome === 'already') && latestValueRef.current.trim() === guess) {
       versionRef.current += 1
@@ -73,12 +108,14 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
   }, [value, disabled, paused, composing])
 
   function handleChange(nextValue: string) {
+    cancelMissShake()
     versionRef.current += 1
     latestValueRef.current = nextValue
     setValue(nextValue)
   }
 
   function clearWord() {
+    cancelMissShake()
     versionRef.current += 1
     latestValueRef.current = ''
     setValue('')
@@ -96,14 +133,14 @@ export function GuessInput({ disabled, paused, onGuess, onGiveUp }: GuessInputPr
     event.preventDefault()
     const guess = value.trim()
     if (!guess || disabled || paused || composing) return
-    await checkGuess(guess, versionRef.current)
+    await checkGuess(guess, versionRef.current, true)
   }
 
   return (
     <div className="guess-area">
       <div className="guess-toolbar">
         <div className="guess-main">
-          <form className="guess-form" onSubmit={handleSubmit}>
+          <form className={'guess-form' + (shaking ? ' guess-form-shake' : '')} onSubmit={handleSubmit}>
             <input
               ref={inputRef}
               value={value}
